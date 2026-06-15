@@ -2,16 +2,28 @@
 
 A macOS app to reclaim disk space by cleaning developer caches, logs, and system junk — built with SwiftUI.
 
+## Download
+
+Download the latest `.dmg` from [Releases](https://github.com/azharbinanwar/MacCleanup/releases).
+
+1. Open the `.dmg`
+2. Drag `MacCleanup.app` to your Applications folder
+3. Right-click → Open (first launch only, to bypass Gatekeeper)
+
 ## Features
 
-- Scans 27+ storage locations and shows sizes live as it scans
+- Live storage bar showing used / free / total disk space
+- Scans 27+ storage locations with live per-row progress
 - Three groups: **Found** (sorted by size), **Commands** (shell-based cleanup), **Nothing to Clean**
-- **Clean All** or **Choose** specific items before deleting
-- Confirmation sheet shows exactly what will be deleted and total size
-- Tracks clean history per category — last cleaned date, times cleaned, space freed
 - Sort by largest or smallest first
+- **Clean All** or **Choose** specific items with confirmation sheet
+- Tracks clean history per category — last cleaned date, times cleaned, space freed
 - Refresh / re-scan without restarting the app
 - Custom accent color and app icon
+
+## Screenshots
+
+> Coming soon
 
 ## Categories Covered
 
@@ -35,7 +47,6 @@ A macOS app to reclaim disk space by cleaning developer caches, logs, and system
 | Spotify Cache | Music app cache |
 | Figma Cache | Offline files |
 | Zoom Speech Cache | AI speech models |
-| Library/Caches | All app caches |
 | Homebrew Cache | Downloaded bottles |
 | QuickLook Thumbnails | Preview thumbnails |
 | Mail Attachments Cache | Mail app attachments |
@@ -45,23 +56,39 @@ A macOS app to reclaim disk space by cleaning developer caches, logs, and system
 | Docker System Prune | Unused images/containers |
 | Wallpaper Aerials | Apple TV aerial wallpapers |
 
-## Requirements
-
-- macOS 15+
-- Xcode 26+
-
-## Build & Run
-
-1. Clone the repo
-2. Open `MacCleanup.xcodeproj` in Xcode
-3. Select your Mac as the run destination
-4. Build and run (`Cmd+R`)
-
-> **Note:** App Sandbox is disabled so the app can access all system paths. This app is for personal use only and is not distributed via the App Store.
-
 ## Skipped Intentionally
 
 - Android Studio SDK, AVD, NDK — manage these separately to avoid breaking your Android setup
+
+## Requirements
+
+- macOS 15+
+- Xcode 26+ (to build from source)
+
+## Build from Source
+
+```bash
+git clone https://github.com/azharbinanwar/MacCleanup.git
+cd MacCleanup
+open MacCleanup.xcodeproj
+```
+
+Then in Xcode: select your Mac → `Cmd+R` to run.
+
+> **Note:** App Sandbox is disabled so the app can access all system paths. Not distributed via the App Store.
+
+## Create a Release Build
+
+1. In Xcode: `Product → Archive`
+2. `Distribute App → Custom → Copy App`
+3. Save `MacCleanup.app` to a folder
+4. Create `.dmg`:
+
+```bash
+hdiutil create -volname "MacCleanup" -srcfolder MacCleanup.app -ov -format UDZO MacCleanup.dmg
+```
+
+5. Upload `MacCleanup.dmg` to a GitHub Release
 
 ## Contributing
 

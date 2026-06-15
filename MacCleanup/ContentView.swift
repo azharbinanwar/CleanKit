@@ -28,6 +28,7 @@ struct ScanView: View {
     var manager: CleanupManager
     let onClean: () -> Void
 
+    @State private var storageInfo = StorageInfo.load()
     @State private var chooseMode = false
     @State private var selected: Set<UUID> = []
     @State private var confirmPayload: ConfirmPayload? = nil
@@ -36,9 +37,11 @@ struct ScanView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            StorageBarView(info: storageInfo)
+            Divider()
             listView
         }
-        .frame(width: 560, height: 520)
+        .frame(width: 560, height: 560)
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             Task { await manager.scanAll() }
@@ -50,6 +53,7 @@ struct ScanView: View {
                 confirmPayload = nil
                 manager.selectedIDs = Set(payload.items.map { $0.id })
                 onClean()
+                storageInfo = StorageInfo.load()
             })
         }
     }
