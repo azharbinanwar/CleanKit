@@ -4,7 +4,7 @@ Contributions are welcome! Here's how to help.
 
 ## Adding a New Cleanup Category
 
-All categories are defined in `MacCleanup/CleanupCategory.swift`.
+All categories are defined in `CleanKit/CleanupCategory.swift`.
 
 Add a new entry to the `all` array:
 

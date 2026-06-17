@@ -1,4 +1,4 @@
-# MacCleanup
+# CleanKit
 
 A macOS developer toolkit to reclaim disk space — built with SwiftUI. Cleans developer caches, app caches, system junk, and logs with live per-row scan progress.
 
@@ -7,7 +7,7 @@ A macOS developer toolkit to reclaim disk space — built with SwiftUI. Cleans d
 Download the latest `.dmg` from [Releases](https://github.com/azharbinanwar/MacCleanup/releases).
 
 1. Open the `.dmg`
-2. Drag `MacCleanup.app` to your Applications folder
+2. Drag `CleanKit.app` to your Applications folder
 3. Right-click → Open (first launch only, to bypass Gatekeeper)
 
 ## Features
@@ -99,8 +99,8 @@ Download the latest `.dmg` from [Releases](https://github.com/azharbinanwar/MacC
 
 ```bash
 git clone https://github.com/azharbinanwar/MacCleanup.git
-cd MacCleanup
-open MacCleanup.xcodeproj
+cd CleanKit
+open CleanKit.xcodeproj
 ```
 
 Then in Xcode: select your Mac → `Cmd+R` to run.
@@ -111,14 +111,14 @@ Then in Xcode: select your Mac → `Cmd+R` to run.
 
 1. In Xcode: `Product → Archive`
 2. `Distribute App → Custom → Copy App`
-3. Save `MacCleanup.app` to a folder
+3. Save `CleanKit.app` to a folder
 4. Create `.dmg`:
 
 ```bash
-hdiutil create -volname "MacCleanup" -srcfolder MacCleanup.app -ov -format UDZO MacCleanup.dmg
+hdiutil create -volname "CleanKit" -srcfolder CleanKit.app -ov -format UDZO CleanKit.dmg
 ```
 
-5. Upload `MacCleanup.dmg` to a GitHub Release
+5. Upload `CleanKit.dmg` to a GitHub Release
 
 ## Contributing
 

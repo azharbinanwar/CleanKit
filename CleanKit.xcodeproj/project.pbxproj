@@ -7,13 +7,13 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		ACFAEFFE2FE0919B0007EF51 /* MacCleanup.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacCleanup.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		ACFAEFFE2FE0919B0007EF51 /* CleanKit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CleanKit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		ACFAF0002FE0919B0007EF51 /* MacCleanup */ = {
+		ACFAF0002FE0919B0007EF51 /* CleanKit */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = MacCleanup;
+			path = CleanKit;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -32,7 +32,7 @@
 		ACFAEFF52FE0919B0007EF51 = {
 			isa = PBXGroup;
 			children = (
-				ACFAF0002FE0919B0007EF51 /* MacCleanup */,
+				ACFAF0002FE0919B0007EF51 /* CleanKit */,
 				ACFAEFFF2FE0919B0007EF51 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -40,7 +40,7 @@
 		ACFAEFFF2FE0919B0007EF51 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				ACFAEFFE2FE0919B0007EF51 /* MacCleanup.app */,
+				ACFAEFFE2FE0919B0007EF51 /* CleanKit.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,9 +48,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		ACFAEFFD2FE0919B0007EF51 /* MacCleanup */ = {
+		ACFAEFFD2FE0919B0007EF51 /* CleanKit */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = ACFAF0092FE0919C0007EF51 /* Build configuration list for PBXNativeTarget "MacCleanup" */;
+			buildConfigurationList = ACFAF0092FE0919C0007EF51 /* Build configuration list for PBXNativeTarget "CleanKit" */;
 			buildPhases = (
 				ACFAEFFA2FE0919B0007EF51 /* Sources */,
 				ACFAEFFB2FE0919B0007EF51 /* Frameworks */,
@@ -61,13 +61,13 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				ACFAF0002FE0919B0007EF51 /* MacCleanup */,
+				ACFAF0002FE0919B0007EF51 /* CleanKit */,
 			);
-			name = MacCleanup;
+			name = CleanKit;
 			packageProductDependencies = (
 			);
-			productName = MacCleanup;
-			productReference = ACFAEFFE2FE0919B0007EF51 /* MacCleanup.app */;
+			productName = CleanKit;
+			productReference = ACFAEFFE2FE0919B0007EF51 /* CleanKit.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -85,7 +85,7 @@
 					};
 				};
 			};
-			buildConfigurationList = ACFAEFF92FE0919B0007EF51 /* Build configuration list for PBXProject "MacCleanup" */;
+			buildConfigurationList = ACFAEFF92FE0919B0007EF51 /* Build configuration list for PBXProject "CleanKit" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -99,7 +99,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				ACFAEFFD2FE0919B0007EF51 /* MacCleanup */,
+				ACFAEFFD2FE0919B0007EF51 /* CleanKit */,
 			);
 		};
 /* End PBXProject section */
@@ -306,7 +306,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		ACFAEFF92FE0919B0007EF51 /* Build configuration list for PBXProject "MacCleanup" */ = {
+		ACFAEFF92FE0919B0007EF51 /* Build configuration list for PBXProject "CleanKit" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				ACFAF0072FE0919C0007EF51 /* Debug */,
@@ -315,7 +315,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		ACFAF0092FE0919C0007EF51 /* Build configuration list for PBXNativeTarget "MacCleanup" */ = {
+		ACFAF0092FE0919C0007EF51 /* Build configuration list for PBXNativeTarget "CleanKit" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				ACFAF00A2FE0919C0007EF51 /* Debug */,

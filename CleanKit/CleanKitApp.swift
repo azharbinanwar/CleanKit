@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct MacCleanupApp: App {
+struct CleanKitApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
