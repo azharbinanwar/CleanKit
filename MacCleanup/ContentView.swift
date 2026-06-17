@@ -32,21 +32,24 @@ enum Tool: String, CaseIterable, Identifiable {
         switch self {
         case .home:        "Overview & stats"
         case .cleaner:     "\(CleanupCategory.all.count) categories"
-        case .largeFinder: "Files over 100 MB"
+        case .largeFinder: "Find files over a size threshold"
         case .uninstaller: "Apps & leftovers"
         }
     }
 
-    var available: Bool { self == .cleaner || self == .home }
+    var available: Bool { self == .cleaner || self == .home || self == .largeFinder }
 }
 
 // MARK: - Root
 
 struct ContentView: View {
     @State private var manager = CleanupManager()
+    @State private var largeScanner = LargeFileScanner()
     @State private var screen: Screen = .scan
     @State private var selectedTool: Tool = .home
     @State private var sidebarCompact = false
+    @State private var showPermissions = false
+    @State private var requiredPermissions: [AppPermission] = []
 
     enum Screen { case scan, cleanAll, done }
 
@@ -56,16 +59,22 @@ struct ContentView: View {
             Divider()
             detailView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            PermissionsPanel(isShowing: $showPermissions, permissions: requiredPermissions)
         }
         .frame(minWidth: 860, minHeight: 620)
+        .animation(.easeInOut(duration: 0.2), value: showPermissions)
     }
 
     @ViewBuilder
     private var detailView: some View {
         switch selectedTool {
-        case .home:    DashboardView(manager: manager, onSelectTool: { selectedTool = $0 })
-        case .cleaner: cleanerView
-        default:       ComingSoonView(tool: selectedTool)
+        case .home:        DashboardView(manager: manager, onSelectTool: { selectedTool = $0 })
+        case .cleaner:     cleanerView
+        case .largeFinder: LargeFileView(scanner: largeScanner, onPermissionMissing: { perms in
+            requiredPermissions = perms
+            withAnimation(.easeInOut(duration: 0.2)) { showPermissions = true }
+        })
+        default:           ComingSoonView(tool: selectedTool)
         }
     }
 
