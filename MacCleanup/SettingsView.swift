@@ -36,7 +36,7 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ToolHeaderView(title: "Settings", subtitle: "Customize MacDevKit")
+            ToolHeaderView(title: "Settings", subtitle: "Customize CleanKit")
             Divider()
             HStack(spacing: 0) {
                 sectionList
@@ -364,7 +364,7 @@ private struct AboutSettings: View {
                     .frame(width: 72, height: 72)
             }
             VStack(spacing: 4) {
-                Text("MacDevKit")
+                Text("CleanKit")
                     .font(.title2.bold())
                 Text(version)
                     .font(.subheadline)

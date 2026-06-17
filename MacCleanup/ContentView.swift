@@ -142,7 +142,7 @@ struct SidebarView: View {
         VStack(spacing: 0) {
             HStack {
                 if !isCompact {
-                    Text("MacDevKit")
+                    Text("CleanKit")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.secondary)
                         .padding(.leading, 12)
@@ -298,7 +298,7 @@ struct DashboardView: View {
     private var heroHeader: some View {
         HStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("MacDevKit")
+                Text("CleanKit")
                     .font(.title.bold())
                 Text("Developer toolkit for macOS")
                     .font(.subheadline)
