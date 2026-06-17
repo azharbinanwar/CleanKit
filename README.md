@@ -1,128 +1,63 @@
 # CleanKit
 
-A macOS developer toolkit to reclaim disk space — built with SwiftUI. Cleans developer caches, app caches, system junk, and logs with live per-row scan progress.
+A free, open-source Mac cleaner and developer toolkit for macOS.
 
-## Download
+![Dashboard](screenshots/dashboard.png)
 
-Download the latest `.dmg` from [Releases](https://github.com/azharbinanwar/MacCleanup/releases).
+CleanKit helps you reclaim disk space and keep your Mac clean. It scans developer caches, system junk, large files, duplicate files, and leftover app data — all in one place.
 
-1. Open the `.dmg`
-2. Drag `CleanKit.app` to your Applications folder
-3. Right-click → Open (first launch only, to bypass Gatekeeper)
+---
 
 ## Features
 
-- Dashboard with live disk storage bar (used / free / total)
-- Sidebar navigation between tools
-- Scans 45+ locations across Developer, Apps, System, and Logs groups
-- Live per-row scan progress with size and file count
-- Sort by largest or smallest first
-- Clean All or choose specific items with confirmation
-- Tracks clean history per category — last cleaned date, times cleaned, space freed
-- Done screen with full summary of what was freed per group
-- Re-scan without restarting the app
-- Custom accent color and app icon
+### Mac Cleaner
+Scan and clean 55 categories across Developer tools, Apps, System, Logs, and Commands.
 
-## Screenshots
+![Mac Cleaner](screenshots/mac-cleaner.png)
 
-> Coming soon
+### Large File Finder
+Find files taking up the most space. Filter by type, sort by size, and delete with one click.
 
-## Categories Covered
+![Large File Finder](screenshots/large-file-finder.png)
 
-### Developer
-| Category | What it cleans |
-|---|---|
-| Xcode DerivedData | Build artifacts |
-| Xcode Archives | App archives |
-| Xcode iOS Device Support | Per-device debug symbols |
-| Xcode Cache | Xcode and build system caches |
-| Gradle Caches | Caches, daemon, wrapper dists |
-| CocoaPods Cache | Local pod repos |
-| Carthage Artifacts | Built Carthage frameworks |
-| npm Cache | Node package cache |
-| Yarn Cache | Yarn package cache |
-| pnpm Store | pnpm content-addressable store |
-| Flutter pub-cache | Dart/Flutter packages |
-| FVM SDK Cache | Flutter version manager SDK caches (all versions) |
-| nvm Cache | Node.js downloaded tarballs |
-| sdkman Archives | Java/Kotlin SDK zip archives |
-| asdf Downloads | Universal version manager downloads |
-| pyenv Cache | Python source tarballs |
-| Ruby Gems Cache | Gem installations |
-| Python pip Cache | pip download cache |
-| Maven Local Repo | Java Maven repository |
-| Cargo Registry Cache | Rust crate registry cache |
-| Go Module Cache | Go module download cache |
-| Android AVD | Android emulator virtual devices |
-| Android Cache | Android SDK cache |
-| JetBrains Caches | IntelliJ/Android Studio caches |
-| VS Code Cache | Editor cache and cached data |
+### Duplicate Finder
+3-pass content hashing to find exact duplicates. Choose what to keep — rest gets deleted.
 
-### Apps
-| Category | What it cleans |
-|---|---|
-| Chrome Cache | Browser cache |
-| Slack Cache | App and service worker cache |
-| Spotify Cache | Music app cache |
-| Figma Cache | Offline files |
-| Zoom Speech Cache | AI speech models |
+![Duplicate Finder](screenshots/duplicate-finder.png)
 
-### System
-| Category | What it cleans |
-|---|---|
-| Library/Caches (All Apps) | All user app caches |
-| Homebrew Cache | Downloaded bottles |
-| QuickLook Thumbnails | Preview thumbnails |
-| Mail Attachments Cache | Mail app attachments |
-| iOS Backups | iPhone/iPad backups via Finder |
-| Trash | ~/.Trash |
-| Wallpaper Aerials | Apple TV aerial wallpapers |
-| Safari Cache | Safari browser cache |
-| Music Cache | Apple Music cache |
-| App Store Cache | App Store download cache |
-| Translation Cache | Translate app offline data |
-| Game Center Cache | Game Center cache |
+### App Uninstaller
+Remove apps along with their leftover preference files, caches, and support data.
 
-### Logs & Commands
-| Category | What it cleans |
-|---|---|
-| All Logs | Google, JetBrains, CoreSimulator, DiagnosticReports |
-| iOS Simulator (Unavailable) | `xcrun simctl delete unavailable` |
-| Docker System Prune | `docker system prune -f` |
+![App Uninstaller](screenshots/app-uninstaller.png)
 
-## Requirements
+### Settings
+Control which categories appear, set large file thresholds, configure duplicate scan limits, and switch between Light, Dark, or System theme.
 
-- macOS 15+
-- Xcode 26+ (to build from source)
+![Settings](screenshots/settings.png)
+
+---
+
+## Install
+
+1. Download `CleanKit.dmg` from [Releases](https://github.com/azharbinanwar/CleanKit/releases)
+2. Open the DMG and drag **CleanKit** to your Applications folder
+3. Launch CleanKit from Applications
+
+> **Note:** CleanKit is not notarized. On first launch, right-click the app and choose **Open** to bypass Gatekeeper.
+
+---
 
 ## Build from Source
 
 ```bash
-git clone https://github.com/azharbinanwar/MacCleanup.git
+git clone https://github.com/azharbinanwar/CleanKit.git
 cd CleanKit
 open CleanKit.xcodeproj
 ```
 
-Then in Xcode: select your Mac → `Cmd+R` to run.
+Requires Xcode 16+ and macOS 15.0+.
 
-> **Note:** App Sandbox is disabled so the app can access all system paths. Not distributed via the App Store.
-
-## Create a Release Build
-
-1. In Xcode: `Product → Archive`
-2. `Distribute App → Custom → Copy App`
-3. Save `CleanKit.app` to a folder
-4. Create `.dmg`:
-
-```bash
-hdiutil create -volname "CleanKit" -srcfolder CleanKit.app -ov -format UDZO CleanKit.dmg
-```
-
-5. Upload `CleanKit.dmg` to a GitHub Release
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md)
+---
 
 ## License
 
