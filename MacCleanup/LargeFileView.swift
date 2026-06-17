@@ -88,7 +88,7 @@ struct LargeFileView: View {
             Divider()
             if scanner.isScanning {
                 scanningView
-            } else if scanner.files.isEmp‹ty {
+            } else if scanner.files.isEmpty {
                 emptyView
             } else {
                 filterChips
