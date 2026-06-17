@@ -37,7 +37,7 @@ enum Tool: String, CaseIterable, Identifiable {
         }
     }
 
-    var available: Bool { self == .cleaner || self == .home || self == .largeFinder }
+    var available: Bool { self == .cleaner || self == .home || self == .largeFinder || self == .uninstaller }
 }
 
 // MARK: - Root
@@ -45,6 +45,7 @@ enum Tool: String, CaseIterable, Identifiable {
 struct ContentView: View {
     @State private var manager = CleanupManager()
     @State private var largeScanner = LargeFileScanner()
+    @State private var appUninstallerScanner = AppUninstallerScanner()
     @State private var screen: Screen = .scan
     @State private var selectedTool: Tool = .home
     @State private var sidebarCompact = false
@@ -74,6 +75,7 @@ struct ContentView: View {
             requiredPermissions = perms
             withAnimation(.easeInOut(duration: 0.2)) { showPermissions = true }
         })
+        case .uninstaller: AppUninstallerView(scanner: appUninstallerScanner)
         default:           ComingSoonView(tool: selectedTool)
         }
     }
