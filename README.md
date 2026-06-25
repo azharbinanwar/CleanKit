@@ -43,7 +43,29 @@ Control which categories appear, set large file thresholds, configure duplicate 
 2. Open the DMG and drag **CleanKit** to your Applications folder
 3. Launch CleanKit from Applications
 
-> **Note:** CleanKit is not notarized. On first launch, right-click the app and choose **Open** to bypass Gatekeeper.
+### First Launch — Security Warning
+
+CleanKit is not notarized, so macOS will show security dialogs the first time you open it. Here's exactly what to do.
+
+**Step 1** — Double-click CleanKit. macOS blocks it and shows this dialog.
+
+![Security dialog 1](screenshots/security-1.png)
+
+Click **Done** (do not click Move to Trash).
+
+**Step 2** — Open **System Settings → Privacy & Security**. Scroll down and you'll see a message that CleanKit was blocked.
+
+![Privacy & Security settings](screenshots/security-2.png)
+
+Click **Open Anyway**.
+
+**Step 3** — A final confirmation dialog appears.
+
+![Security dialog 3](screenshots/security-3.png)
+
+Click **Open Anyway**. CleanKit will launch.
+
+> You only need to do this once. After that, CleanKit opens normally.
 
 ---
 
