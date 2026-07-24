@@ -118,7 +118,7 @@ struct AppUninstallerView: View {
                 AppBanner(
                     icon: "hand.raised",
                     message: "Accessibility is required to clean some app components effectively.",
-                    actionTitle: "Fix Now"
+                    actionTitle: "Open Settings"
                 ) {
                     NSWorkspace.shared.open(AppPermission.accessibility.settingsURL)
                 }
@@ -255,7 +255,7 @@ struct AppUninstallerView: View {
 
                 Divider().frame(height: 24).opacity(0.1)
 
-                AppButton(title: "Scan Apps", icon: "arrow.clockwise", style: .glass, isEnabled: !scanner.isScanning) {
+                AppButton(title: "Scan", icon: "magnifyingglass", style: .primary, isEnabled: !scanner.isScanning) {
                     Task { await scanner.scanApps() }
                 }
             }

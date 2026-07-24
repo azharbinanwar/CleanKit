@@ -103,7 +103,7 @@ struct MacCleanerView: View {
                     AppBanner(
                         icon: "lock.shield.fill",
                         message: "Cleaning may be incomplete. Some permissions are required for system cleanup.",
-                        actionTitle: "Grant Access"
+                        actionTitle: "Open Settings"
                     ) {
                         NSWorkspace.shared.open(AppPermission.fullDiskAccess.settingsURL)
                     }
@@ -176,7 +176,7 @@ struct MacCleanerView: View {
 
     private var header: some View {
         AppHeader(title: "Mac Cleaner", subtitle: "\(categorySettings.enabledCount) categories enabled") {
-            AppButton(title: "Scan Again", icon: "arrow.clockwise", style: .glass, isEnabled: !manager.isScanning) {
+            AppButton(title: "Scan", icon: "magnifyingglass", style: .primary, isEnabled: !manager.isScanning) {
                 selectedIDs = []
                 manager.categories = categorySettings.enabledCategories
                 Task {
@@ -655,7 +655,7 @@ struct DoneView: View {
             ]
         ) {
             AppButton(title: "Done", style: .primary, action: onBack)
-            AppButton(title: "Scan Again", icon: "arrow.clockwise", style: .glass, action: onRescan)
+            AppButton(title: "Scan", icon: "magnifyingglass", style: .primary, action: onRescan)
         }
     }
 }

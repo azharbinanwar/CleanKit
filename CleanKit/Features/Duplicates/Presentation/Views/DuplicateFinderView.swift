@@ -98,7 +98,7 @@ struct DuplicateFinderView: View {
                 AppBanner(
                     icon: "lock.shield",
                     message: "Full Disk Access is required to find duplicates in all system folders.",
-                    actionTitle: "Fix Now"
+                    actionTitle: "Open Settings"
                 ) {
                     NSWorkspace.shared.open(AppPermission.fullDiskAccess.settingsURL)
                 }
@@ -184,7 +184,7 @@ struct DuplicateFinderView: View {
                 Divider().frame(height: 24).opacity(0.1)
                 
                 AppButton(
-                    title: "Custom",
+                    title: "Scan Folder…",
                     icon: "folder",
                     style: .glass,
                     isEnabled: !scanner.isScanning && !scanner.isCounting

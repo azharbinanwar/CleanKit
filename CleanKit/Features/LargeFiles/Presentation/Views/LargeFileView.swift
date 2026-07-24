@@ -44,7 +44,7 @@ struct LargeFileView: View {
                 AppBanner(
                     icon: "lock.shield.fill",
                     message: "Full Disk Access is required to find all large files on your Mac.",
-                    actionTitle: "Fix Now"
+                    actionTitle: "Open Settings"
                 ) {
                     NSWorkspace.shared.open(AppPermission.fullDiskAccess.settingsURL)
                 }
@@ -86,7 +86,7 @@ struct LargeFileView: View {
                 HStack(spacing: 8) {
                     quickTargetButton(title: "Home", icon: "house", path: NSHomeDirectory())
                     quickTargetButton(title: "Downloads", icon: "arrow.down.circle", path: "~/Downloads")
-                    quickTargetButton(title: "Documents", icon: "doc", path: "~/Documents")
+                    quickTargetButton(title: "Documents", icon: "doc.text", path: "~/Documents")
                 }
                 
                 Divider().frame(height: 24).opacity(0.1)
@@ -129,27 +129,12 @@ struct LargeFileView: View {
     }
 
     private func quickTargetButton(title: String, icon: String, path: String) -> some View {
-        Button {
+        // Same style as the Duplicate Finder's preset buttons.
+        AppButton(title: title, icon: icon, style: .glass, isEnabled: !scanner.isScanning) {
             selectedIDs = []
             let expanded = (path as NSString).expandingTildeInPath
             Task { await scanner.scan(in: URL(fileURLWithPath: expanded)) }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 12, weight: .bold))
-                Text(title)
-                    .font(.system(size: 12, weight: .bold))
-            }
-            .foregroundColor(.primary) // Clearer primary text
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .frame(height: 36) // Matching Scan and Size button heights
-            .background(Color.primary.opacity(0.08)) // Stronger background so it doesn't look disabled
-            .cornerRadius(12)
         }
-        .buttonStyle(.plain)
-        .disabled(scanner.isScanning)
-        .opacity(scanner.isScanning ? 0.5 : 1.0)
     }
     
     private var scanningState: some View {
