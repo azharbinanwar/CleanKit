@@ -23,6 +23,3 @@ build/
 
 # Packages
 .build/
-
-# Claude
-.claude/
