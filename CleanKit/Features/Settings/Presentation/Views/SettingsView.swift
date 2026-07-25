@@ -2,24 +2,22 @@ import SwiftUI
 
 struct SettingsView: View {
     let categorySettings: CategorySettings
-    @State private var selectedSection: SettingsSection = .appearance
+    @State private var selectedSection: SettingsSection = .general
 
     enum SettingsSection: String, CaseIterable, Identifiable {
-        case appearance = "Appearance"
+        case general     = "General"
         case cleaner     = "Mac Cleaner"
         case largeFiles  = "Large File Finder"
         case duplicates  = "Duplicate Finder"
-        case about       = "About"
 
         var id: String { rawValue }
 
         var icon: String {
             switch self {
-            case .appearance: "paintbrush"
+            case .general:    "gearshape"
             case .cleaner:    "trash"
             case .largeFiles: "doc.text.magnifyingglass"
             case .duplicates: "doc.on.doc"
-            case .about:      "info.circle"
             }
         }
     }
@@ -63,45 +61,157 @@ struct SettingsView: View {
     @ViewBuilder
     private var sectionContent: some View {
         switch selectedSection {
-        case .appearance: AppearanceSettings()
+        case .general:    GeneralSettings()
         case .cleaner:    CleanerSettings(categorySettings: categorySettings)
         case .largeFiles: LargeFileSettings()
         case .duplicates: DuplicateSettings()
-        case .about:      AboutSettings()
         }
     }
 }
 
-// MARK: - Sub-Settings Views (Omitted for brevity, but I will restore them in a real implementation)
-// For now I will restore the full content as I read it earlier.
 
-private struct AppearanceSettings: View {
+// MARK: - Reusable settings row (icon tile · title/subtitle · trailing control)
+
+private struct SettingRow<Trailing: View>: View {
+    let title: String
+    var subtitle: String? = nil
+    var icon: String? = nil
+    var tint: Color = .accentColor
+    @ViewBuilder var trailing: () -> Trailing
+
+    var body: some View {
+        HStack(spacing: 12) {
+            if let icon {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8).fill(tint.opacity(0.15)).frame(width: 32, height: 32)
+                    Image(systemName: icon).font(.system(size: 14, weight: .medium)).foregroundColor(tint)
+                }
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.system(size: 13, weight: .medium))
+                if let subtitle {
+                    Text(subtitle).font(.caption).foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer()
+            trailing()
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12)
+    }
+}
+
+// MARK: - General (Appearance · Software Update · About)
+
+private struct GeneralSettings: View {
     @AppStorage("appTheme") private var theme: String = "system"
+    @State private var checker = UpdateChecker.shared
+    @AppStorage("updates.autoCheck") private var autoCheck = true
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                settingsHeader("Appearance").padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 12)
+                settingsHeader("General").padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 12)
                 Divider().opacity(0.4)
+
+                // Appearance
+                groupLabel("Appearance")
                 HStack(alignment: .top, spacing: 16) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Theme")
-                            .font(.system(size: 13, weight: .medium))
-                        Text("Choose the app appearance.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        Text("Theme").font(.system(size: 13, weight: .medium))
+                        Text("Choose the app appearance.").font(.caption).foregroundColor(.secondary)
                     }
                     Spacer()
                     HStack(spacing: 12) {
-                        ForEach(["system", "light", "dark"], id: \.self) { option in
-                            themeOption(option)
+                        ForEach(["system", "light", "dark"], id: \.self) { themeOption($0) }
+                    }
+                }
+                .padding(.horizontal, 16).padding(.vertical, 14)
+                Divider().opacity(0.4)
+
+                // Software Update
+                groupLabel("Software Update")
+                SettingRow(title: "Software Updates", subtitle: statusText, icon: "arrow.down.circle") {
+                    updateControl
+                }
+                if case .available(let v) = checker.phase {
+                    SettingRow(title: "Version \(v) is available",
+                               subtitle: "Downloads, verifies with SHA-256, and installs automatically. CleanKit relaunches when done.",
+                               icon: "sparkles", tint: .accentColor) {
+                        AppButton(title: "Install", icon: "arrow.down.circle", style: .primary) {
+                            Task { await checker.downloadAndInstall() }
                         }
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
+                if case .downloading(let p) = checker.phase {
+                    HStack(spacing: 10) {
+                        ProgressView(value: p).frame(maxWidth: 240)
+                        Text("\(Int(p * 100))%").font(.system(size: 11).monospacedDigit()).foregroundColor(.secondary)
+                    }
+                    .padding(.leading, 44).padding(.trailing, 16).padding(.bottom, 12)
+                }
+                SettingRow(title: "Check automatically",
+                           subtitle: "Look for new versions once a day, on launch.",
+                           icon: "clock.arrow.circlepath") {
+                    Toggle("", isOn: $autoCheck).toggleStyle(.switch).labelsHidden()
+                }
                 Divider().opacity(0.4)
+
+                // About
+                groupLabel("About")
+                SettingRow(title: "CleanKit", subtitle: "The open-source Mac cleanup toolkit.", icon: "sparkles") {
+                    Text("v\(checker.currentVersion)")
+                        .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                        .foregroundColor(.secondary)
+                }
+                Button { checker.openReleasesPage() } label: {
+                    SettingRow(title: "GitHub", subtitle: "github.com/azharbinanwar/CleanKit",
+                               icon: "chevron.left.forwardslash.chevron.right") {
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 11, weight: .bold)).foregroundColor(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
+        }
+        .task { await checker.checkIfDue() }
+    }
+
+    private func groupLabel(_ text: String) -> some View {
+        Text(text).font(.caption.weight(.semibold)).foregroundColor(.secondary).textCase(.uppercase)
+            .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 6)
+    }
+
+    private var statusText: String {
+        switch checker.phase {
+        case .idle:
+            if let last = checker.lastChecked { return "Last checked \(last.relativeString)." }
+            return "See if a newer version is available."
+        case .checking:            return "Checking for updates…"
+        case .upToDate:            return "You're up to date. \(checker.currentVersion) is the latest."
+        case .available(let v):    return "Version \(v) is ready to install."
+        case .downloading:         return "Downloading CleanKit.dmg…"
+        case .installing:          return "Installing. CleanKit will relaunch in a moment…"
+        case .downloaded(let v):   return "Drag CleanKit \(v) from the opened window into Applications."
+        case .failed(let m):       return m
+        }
+    }
+
+    @ViewBuilder
+    private var updateControl: some View {
+        switch checker.phase {
+        case .checking, .downloading, .installing:
+            ProgressView().controlSize(.small)
+        case .upToDate:
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill").foregroundColor(.green).font(.system(size: 14))
+                AppButton(title: "Check Again", style: .glass) { Task { await checker.check() } }
+            }
+        case .available:
+            EmptyView()
+        default:
+            AppButton(title: "Check", style: .glass) { Task { await checker.check() } }
         }
     }
 
@@ -116,6 +226,15 @@ private struct AppearanceSettings: View {
                             RoundedRectangle(cornerRadius: 10)
                                 .stroke(theme == value ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: theme == value ? 2 : 1)
                         )
+                    // Mini app window: sidebar + content, so the swatch reads as CleanKit.
+                    HStack(spacing: 4) {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(barColor(value, strong: true))
+                            .frame(width: 16, height: 34)
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(barColor(value, strong: false))
+                            .frame(width: 38, height: 34)
+                    }
                 }
                 Text(value.capitalized)
                     .font(.caption.weight(.medium))
@@ -123,6 +242,14 @@ private struct AppearanceSettings: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    private func barColor(_ value: String, strong: Bool) -> Color {
+        switch value {
+        case "dark":  return Color.white.opacity(strong ? 0.16 : 0.08)
+        case "light": return Color.black.opacity(strong ? 0.10 : 0.05)
+        default:      return Color.gray.opacity(strong ? 0.45 : 0.25)
+        }
     }
 
     private func themeBackground(_ value: String) -> AnyShapeStyle {
@@ -294,35 +421,6 @@ private struct DuplicateSettings: View {
     }
 }
 
-// MARK: - About
-
-private struct AboutSettings: View {
-    private var version: String {
-        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-        return "Version \(v) (\(b))"
-    }
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            if let appIcon = NSApp.applicationIconImage {
-                Image(nsImage: appIcon)
-                    .resizable()
-                    .frame(width: 72, height: 72)
-            }
-            VStack(spacing: 4) {
-                Text("CleanKit")
-                    .font(.title2.bold())
-                Text(version)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
 
 private func settingsHeader(_ title: String) -> some View {
     Text(title).font(.title2.bold())

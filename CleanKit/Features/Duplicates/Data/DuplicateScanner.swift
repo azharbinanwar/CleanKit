@@ -55,19 +55,19 @@ final class DuplicateScanner {
     func scan(in root: URL) async {
         isScanning = true
         groups = []
-        scanPhase = "Pass 1 of 3 — Indexing files"
+        scanPhase = "Pass 1 of 3: Indexing files"
         let bySize = await Task.detached(priority: .userInitiated) {
             Self.groupBySize(in: root)
         }.value
 
         let candidateCount = bySize.values.filter { $0.count > 1 }.flatMap { $0 }.count
-        scanPhase = "Pass 2 of 3 — Quick hash on \(candidateCount.formatted()) candidates"
+        scanPhase = "Pass 2 of 3: Quick hash on \(candidateCount.formatted()) candidates"
         let byPartial = await Task.detached(priority: .userInitiated) {
             Self.filterByPartialHash(bySize)
         }.value
 
         let deepCount = byPartial.values.filter { $0.urls.count > 1 }.flatMap { $0.urls }.count
-        scanPhase = "Pass 3 of 3 — Deep comparison of \(deepCount.formatted()) files"
+        scanPhase = "Pass 3 of 3: Deep comparison of \(deepCount.formatted()) files"
         let found = await Task.detached(priority: .userInitiated) {
             Self.buildGroups(byPartial)
         }.value

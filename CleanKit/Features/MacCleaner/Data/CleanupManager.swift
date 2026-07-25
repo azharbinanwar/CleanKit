@@ -55,7 +55,7 @@ final class CleanupManager {
             let result = await Self.runElevated(pendingElevated)
             if result.cancelled {
                 elevationCancelled = true
-                cleanErrors.append("Password prompt cancelled — items needing admin access were skipped")
+                cleanErrors.append("Password prompt cancelled. Items needing admin access were skipped")
             } else if let err = result.error {
                 cleanErrors.append(err)
             }
@@ -106,7 +106,7 @@ final class CleanupManager {
         }
         let remaining = work.failedItems.filter { fm.fileExists(atPath: $0.url.path) }.count
         if remaining > 0 && errorMessage == nil && !cancelled {
-            errorMessage = "\(remaining) item(s) blocked — grant Full Disk Access in System Settings → Privacy & Security"
+            errorMessage = "\(remaining) item(s) blocked. Grant Full Disk Access in System Settings → Privacy & Security"
         }
         return (freed, errorMessage, cancelled)
     }
@@ -352,7 +352,7 @@ final class CleanupManager {
                 let items = (try? fm.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)) ?? []
                 for item in items where !removeUnlocking(item) { stuck += 1 }
             }
-            return (0, stuck == 0 ? nil : "\(stuck) item(s) still in use — close the app that owns them and retry", nil)
+            return (0, stuck == 0 ? nil : "\(stuck) item(s) still in use. Close the app that owns them and retry", nil)
         }
 
         // 1. Handle Shell Commands
@@ -422,7 +422,7 @@ final class CleanupManager {
             let result = await runElevated(elevated)
             freed += result.freed
             if result.cancelled {
-                errors.append("password prompt cancelled — items needing admin access were skipped")
+                errors.append("password prompt cancelled. Items needing admin access were skipped")
             } else if let err = result.error {
                 errors.append(err)
             }

@@ -9,9 +9,10 @@ struct CleanKitApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .task { await UpdateChecker.shared.checkIfDue() } // daily auto-check
         }
         .windowStyle(.hiddenTitleBar)
-        .defaultSize(width: 1000, height: 660)
+        .defaultSize(width: 1220, height: 760)
     }
     
     private func setupDI() {

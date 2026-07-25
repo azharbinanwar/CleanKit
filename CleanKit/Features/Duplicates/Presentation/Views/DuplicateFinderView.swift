@@ -9,7 +9,6 @@ private enum ScanPreset: String, CaseIterable, Identifiable {
     case downloads = "Downloads"
     case desktop   = "Desktop"
     case documents = "Documents"
-    case movies    = "Movies"
 
     var id: String { rawValue }
     var icon: String {
@@ -18,7 +17,6 @@ private enum ScanPreset: String, CaseIterable, Identifiable {
         case .downloads: return "arrow.down.circle"
         case .desktop:   return "desktopcomputer"
         case .documents: return "doc"
-        case .movies:    return "film"
         }
     }
 
@@ -28,7 +26,6 @@ private enum ScanPreset: String, CaseIterable, Identifiable {
         case .downloads: return FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
         case .desktop:   return FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!
         case .documents: return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        case .movies:    return FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask).first!
         }
     }
 }

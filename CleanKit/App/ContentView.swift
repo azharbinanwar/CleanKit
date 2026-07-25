@@ -72,7 +72,7 @@ struct ContentView: View {
                     .offset(x: -400, y: -200)
             }
         )
-        .frame(minWidth: 860, minHeight: 620)
+        .frame(minWidth: 1180, minHeight: 720)
         .preferredColorScheme(resolvedColorScheme)
         .animation(.easeInOut(duration: 0.2), value: showPermissions)
         .ignoresSafeArea()
