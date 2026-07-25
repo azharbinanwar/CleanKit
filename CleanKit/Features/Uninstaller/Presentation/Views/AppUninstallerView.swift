@@ -31,9 +31,6 @@ struct AppUninstallerView: View {
     @State private var pendingLeftovers: Set<UUID>? = nil   // set → show uninstall confirm
     @State private var pendingCacheClean: UUID? = nil       // set → show cache confirm
     @State private var lastResult: UninstallResult? = nil
-    // Re-checked when the app becomes active, so the banner hides after the
-    // user grants Accessibility in System Settings.
-    @State private var accessibilityGranted = AppPermission.accessibility.isGranted
 
     enum SortOption { case name, size, date }
     enum Screen { case main, result }
@@ -110,27 +107,13 @@ struct AppUninstallerView: View {
         }
         .onAppear {
             if scanner.apps.isEmpty { Task { await scanner.scanApps() } }
-            accessibilityGranted = AppPermission.accessibility.isGranted
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            accessibilityGranted = AppPermission.accessibility.isGranted
         }
     }
     
     private var mainContent: some View {
         VStack(spacing: 16) {
             header
-            
-            if !accessibilityGranted {
-                AppBanner(
-                    icon: "hand.raised",
-                    message: "Accessibility is required to clean some app components effectively.",
-                    actionTitle: "Open Settings"
-                ) {
-                    NSWorkspace.shared.open(AppPermission.accessibility.settingsURL)
-                }
-            }
-            
+
             HStack(spacing: 16) {
                 // 1. Sidebar: Groups
                 VStack(spacing: 0) {
