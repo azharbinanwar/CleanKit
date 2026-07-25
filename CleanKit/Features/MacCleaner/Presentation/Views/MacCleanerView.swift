@@ -89,6 +89,9 @@ struct MacCleanerView: View {
     @State private var selectedGroup: CleanerGroup = CleanerGroup.all[0]
     @State private var selectedIDs: Set<UUID> = []
     @State private var confirmPayload: ConfirmPayload? = nil
+    // Re-checked on appear and when the app becomes active, so the banner hides
+    // as soon as the user grants Full Disk Access in System Settings.
+    @State private var fullDiskGranted = AppPermission.fullDiskAccess.isGranted
 
     var allGroupsTotal: Int64 {
         CleanupManager.dedupedSize(manager.categories)
@@ -99,10 +102,10 @@ struct MacCleanerView: View {
             VStack(spacing: 16) {
                 header
 
-                if manager.hasMissingPermissions {
+                if !fullDiskGranted {
                     AppBanner(
                         icon: "lock.shield.fill",
-                        message: "Cleaning may be incomplete. Some permissions are required for system cleanup.",
+                        message: "Cleaning may be incomplete. Full Disk Access is required for system cleanup.",
                         actionTitle: "Open Settings"
                     ) {
                         NSWorkspace.shared.open(AppPermission.fullDiskAccess.settingsURL)
@@ -156,6 +159,7 @@ struct MacCleanerView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
+            fullDiskGranted = AppPermission.fullDiskAccess.isGranted
             // Don't rescan on tab re-entry: skip if a scan is running or results
             // already exist. Just restore the default selection in that case.
             if manager.isScanning || manager.hasScanned {
@@ -168,6 +172,12 @@ struct MacCleanerView: View {
                 withAnimation(.spring()) { selectedIDs = Set(autoSelectableIDs()) }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            // Cheap re-check on return from System Settings: the banner clears the
+            // moment Full Disk Access is granted, no re-scan needed.
+            fullDiskGranted = AppPermission.fullDiskAccess.isGranted
+        }
+        .animation(.easeInOut(duration: 0.25), value: fullDiskGranted)
     }
 
     private func autoSelectableIDs() -> [UUID] {

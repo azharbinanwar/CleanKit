@@ -4,6 +4,9 @@ struct DashboardView: View {
     var viewModel: DashboardViewModel
     let categorySettings: CategorySettings
     let onSelectTool: (Tool) -> Void
+    // Re-checked on appear and on app activation, so the banner clears the moment
+    // Full Disk Access is granted.
+    @State private var fullDiskGranted = AppPermission.fullDiskAccess.isGranted
 
     private var tools: [Tool] { Tool.allCases.filter { $0 != .home } }
 
@@ -17,7 +20,7 @@ struct DashboardView: View {
                 .allowsHitTesting(false)
             
             VStack(spacing: 24) {
-                if viewModel.manager.hasMissingPermissions {
+                if !fullDiskGranted {
                     AppBanner(
                         icon: "lock.shield.fill",
                         message: "Some system folders are protected. Grant Full Disk Access to clean everything.",
@@ -64,5 +67,10 @@ struct DashboardView: View {
             .padding(.horizontal, 28)
             .padding(.vertical, 22)
         }
+        .onAppear { fullDiskGranted = AppPermission.fullDiskAccess.isGranted }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            fullDiskGranted = AppPermission.fullDiskAccess.isGranted
+        }
+        .animation(.easeInOut(duration: 0.25), value: fullDiskGranted)
     }
 }

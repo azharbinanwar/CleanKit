@@ -8,6 +8,9 @@ struct LargeFileView: View {
     @State private var selectedIDs: Set<UUID> = []
     @State private var confirmDeletion = false
     @State private var lastDeletedSize: Int64 = 0
+    // Re-checked on appear and when the app becomes active, so the banner hides
+    // as soon as the user grants Full Disk Access.
+    @State private var fullDiskGranted = AppPermission.fullDiskAccess.isGranted
     // Shares the same key Settings writes, so the Settings default and the
     // in-view picker stay in sync.
     @AppStorage("largeFileDefaultMB") private var thresholdMB: Double = 100
@@ -33,14 +36,19 @@ struct LargeFileView: View {
         }
         .onAppear {
             scanner.thresholdBytes = Int64(thresholdMB * 1024 * 1024)
+            fullDiskGranted = AppPermission.fullDiskAccess.isGranted
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            fullDiskGranted = AppPermission.fullDiskAccess.isGranted
+        }
+        .animation(.easeInOut(duration: 0.25), value: fullDiskGranted)
     }
     
     private var listView: some View {
         VStack(spacing: 16) {
             header
             
-            if !AppPermission.fullDiskAccess.isGranted {
+            if !fullDiskGranted {
                 AppBanner(
                     icon: "lock.shield.fill",
                     message: "Full Disk Access is required to find all large files on your Mac.",

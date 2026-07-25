@@ -59,7 +59,10 @@ struct DuplicateFinderView: View {
     @State private var bulkConfirm: Bool = false
     @State private var scanWarning: ScanWarning? = nil
     @State private var scanRootName = ""
-    
+    // Re-checked on appear and on app activation, so the banner clears the moment
+    // Full Disk Access is granted.
+    @State private var fullDiskGranted = AppPermission.fullDiskAccess.isGranted
+
     enum Screen { case main, result }
     @State private var currentScreen: Screen = .main
     @State private var lastFreedSize: Int64 = 0
@@ -85,13 +88,18 @@ struct DuplicateFinderView: View {
                 resultView
             }
         }
+        .onAppear { fullDiskGranted = AppPermission.fullDiskAccess.isGranted }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            fullDiskGranted = AppPermission.fullDiskAccess.isGranted
+        }
+        .animation(.easeInOut(duration: 0.25), value: fullDiskGranted)
     }
 
     private var mainContent: some View {
         VStack(spacing: 16) {
             header
             
-            if !AppPermission.fullDiskAccess.isGranted {
+            if !fullDiskGranted {
                 AppBanner(
                     icon: "lock.shield",
                     message: "Full Disk Access is required to find duplicates in all system folders.",
