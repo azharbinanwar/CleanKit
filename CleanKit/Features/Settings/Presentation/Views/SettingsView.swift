@@ -164,6 +164,14 @@ private struct GeneralSettings: View {
                         .font(.system(size: 12, weight: .semibold).monospacedDigit())
                         .foregroundColor(.secondary)
                 }
+                Button { NSWorkspace.shared.open(URL(string: "https://kodeelite.com")!) } label: {
+                    SettingRow(title: "Website", subtitle: "kodeelite.com", icon: "globe") {
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 11, weight: .bold)).foregroundColor(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
                 Button { checker.openReleasesPage() } label: {
                     SettingRow(title: "GitHub", subtitle: "github.com/azharbinanwar/CleanKit",
                                icon: "chevron.left.forwardslash.chevron.right") {
@@ -291,7 +299,7 @@ private struct CleanerSettings: View {
                             }
                             Spacer()
                             Toggle("", isOn: Binding(get: { categorySettings.isEnabled(cat.name) }, set: { _ in categorySettings.setEnabled(cat.name, enabled: !categorySettings.isEnabled(cat.name)) }))
-                                .toggleStyle(.switch).controlSize(.mini)
+                                .toggleStyle(.switch)
                         }.padding(.horizontal, 16).padding(.vertical, 9)
                     }
                 }
@@ -367,7 +375,6 @@ private struct LargeFileSettings: View {
                             }
                         ))
                         .toggleStyle(.switch)
-                        .controlSize(.mini)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
