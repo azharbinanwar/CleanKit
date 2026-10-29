@@ -1,10 +1,5 @@
 import SwiftUI
 
-private struct DialogContentHeight: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
-}
-
 struct AppDialog<Content: View, Actions: View>: View {
     let title: String
     let subtitle: String?
@@ -15,8 +10,6 @@ struct AppDialog<Content: View, Actions: View>: View {
     let onDismiss: () -> Void
     var width: CGFloat = 520
     var maxHeight: CGFloat = 600
-
-    @State private var contentHeight: CGFloat = 0
 
     /// Max height the scrollable content area may take (reserves room for the
     /// header and footer). Below this, the dialog just fits its content.
@@ -46,8 +39,9 @@ struct AppDialog<Content: View, Actions: View>: View {
 
     var body: some View {
         ZStack {
-            // 1. Transparent Backdrop (Click to close)
-            Color.black.opacity(0.15)
+            // 1. Invisible backdrop: no dimming, but a click outside still closes.
+            Color.clear
+                .contentShape(Rectangle())
                 .ignoresSafeArea()
                 .onTapGesture { onDismiss() }
 
@@ -56,16 +50,13 @@ struct AppDialog<Content: View, Actions: View>: View {
                 header
 
                 // Fit height to content, scrolling only when it exceeds the cap.
-                ScrollView {
-                    content
-                        .padding(24)
-                        .background(GeometryReader { g in
-                            Color.clear.preference(key: DialogContentHeight.self, value: g.size.height)
-                        })
+                // ViewThatFits picks the plain content when it fits; measuring it
+                // inside a ScrollView instead read back 0 and collapsed the list.
+                ViewThatFits(in: .vertical) {
+                    content.padding(24)
+                    ScrollView { content.padding(24) }
                 }
-                .frame(height: min(contentHeight, contentCap))
-                .scrollDisabled(contentHeight <= contentCap) // no scrollbar when it fits
-                .onPreferenceChange(DialogContentHeight.self) { contentHeight = $0 }
+                .frame(maxHeight: contentCap)
 
                 VStack(spacing: 0) {
                     Divider().opacity(0.05)
@@ -77,21 +68,14 @@ struct AppDialog<Content: View, Actions: View>: View {
             }
             .frame(width: width)
             .background(
-                // Same frosted material + accent glow as the main app background.
-                ZStack {
-                    Rectangle().fill(.ultraThinMaterial)
-                    Circle()
-                        .fill(tint.opacity(0.20))
-                        .frame(width: 300, height: 300)
-                        .blur(radius: 110)
-                        .offset(x: -140, y: -170)
-                }
+                Rectangle().fill(.ultraThinMaterial)
             )
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
                     .stroke(Color.primary.opacity(0.05), lineWidth: 1)
             )
+            .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
             .onExitCommand { onDismiss() } // ESC key support
         }
     }

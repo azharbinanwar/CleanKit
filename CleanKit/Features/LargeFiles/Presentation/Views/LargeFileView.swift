@@ -73,13 +73,11 @@ struct LargeFileView: View {
             .background(.ultraThinMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.05), lineWidth: 1))
-            .blur(radius: confirmDeletion ? 10 : 0)
             
             footer
                 .background(.ultraThinMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.05), lineWidth: 1))
-                .blur(radius: confirmDeletion ? 10 : 0)
         }
         .overlay {
             if confirmDeletion {

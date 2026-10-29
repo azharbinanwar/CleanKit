@@ -87,7 +87,6 @@ struct AppUninstallerView: View {
         ZStack {
             if currentScreen == .main {
                 mainContent
-                    .blur(radius: pendingLeftovers != nil ? 10 : 0)
                     .disabled(pendingLeftovers != nil)
             } else {
                 resultView

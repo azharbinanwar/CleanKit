@@ -158,7 +158,6 @@ struct MacCleanerView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.05), lineWidth: 1))
             }
-            .blur(radius: confirmPayload != nil ? 10 : 0)
             .disabled(confirmPayload != nil)
 
             if let payload = confirmPayload {
@@ -195,6 +194,11 @@ struct MacCleanerView: View {
             fullDiskGranted = AppPermission.fullDiskAccess.isGranted
         }
         .animation(.easeInOut(duration: 0.25), value: fullDiskGranted)
+        // A scan started elsewhere (Dashboard) may finish after this screen
+        // ticked a partial set; tick the full recommended set once sizes are known.
+        .onChange(of: manager.isScanning) { _, isScanning in
+            if !isScanning { selectedIDs = Set(autoSelectableIDs()) }
+        }
     }
 
     /// "Your data" and large-download items are never pre-selected; the user must opt in.
@@ -244,30 +248,26 @@ struct MacCleanerView: View {
 
                 Spacer()
 
-                // 2. Actions (Right)
-                if selectedIDs.isEmpty {
-                    AppButton(title: "Clean All", style: .primary, isEnabled: allGroupsTotal > 0 && !manager.isScanning) {
-                        let items = manager.categories.filter { $0.hasWork }
-                        confirmPayload = ConfirmPayload(items: items)
+                // 2. Actions (Right). Recommended items are ticked by default, so the
+                // main button cleans the recommended set; once the user changes any
+                // tick it cleans their selection instead. Sizes update live while
+                // scanning; buttons stay disabled until the scan ends.
+                let recommendedIDs = Set(autoSelectableIDs())
+                let all = manager.categories.filter(\.hasWork)
+                let isRecommended = manager.isScanning || selectedIDs == recommendedIDs
+                let mainItems = manager.categories.filter { (isRecommended ? recommendedIDs : selectedIDs).contains($0.id) }
+                HStack(spacing: 10) {
+                    AppButton(title: "Clean All · \(CleanupManager.dedupedSize(all).formattedSize)", style: .glass,
+                              isEnabled: !all.isEmpty && !manager.isScanning) {
+                        confirmPayload = ConfirmPayload(items: all)
                     }
-                } else {
-                    HStack(spacing: 16) {
-                        Button(action: { withAnimation(.spring()) { selectedIDs = [] } }) {
-                            Text("Deselect All")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
-
-                        Text("\(selectedIDs.count) selected")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-
-                        AppButton(title: "Clean Selected", style: .primary) {
-                            let items = manager.categories.filter { selectedIDs.contains($0.id) }
-                            confirmPayload = ConfirmPayload(items: items)
-                        }
+                    .help("Everything found, including your own data. You review it before anything is deleted.")
+                    AppButton(title: "\(isRecommended ? "Clean Recommended" : "Clean Selected") · \(CleanupManager.dedupedSize(mainItems).formattedSize)",
+                              style: .primary,
+                              isEnabled: !mainItems.isEmpty && !manager.isScanning) {
+                        confirmPayload = ConfirmPayload(items: mainItems)
                     }
+                    .help(isRecommended ? "Caches and build files that rebuild by themselves." : "Only the items you ticked.")
                 }
             }
             .padding(.horizontal, 24)
@@ -636,72 +636,53 @@ struct ConfirmSheet: View {
     @State private var isDataLossAcknowledged = false
 
     var totalSize: Int64 { CleanupManager.dedupedSize(items) }
-    private var dataItems: [CleanupCategory] { items.filter { $0.safety == .data } }
+    private var hasDataItems: Bool { items.contains { $0.safety == .data } }
+    private var sortedItems: [CleanupCategory] { items.sorted { $0.cleanableBytes > $1.cleanableBytes } }
 
     var body: some View {
+        let maxSize = max(1, items.map(\.cleanableBytes).max() ?? 1)
         AppDialog(
-            title: "Delete These Items?",
+            title: "Review Cleanup",
             subtitle: "Deleted items skip the Trash and can't be restored.",
+            width: 600,
+            maxHeight: 660,
             onDismiss: onCancel
         ) {
+            // The same tiles as the list, so the user sees exactly what goes.
             VStack(spacing: 0) {
-                if !dataItems.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: "exclamationmark.octagon.fill").foregroundColor(.red)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("This includes your own data")
-                                    .font(.system(size: 12, weight: .bold))
-                                Text("\(dataItems.map(\.name).joined(separator: ", ")) can't be rebuilt or re-downloaded. Once deleted, it is gone for good.")
-                                    .font(.system(size: 11))
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                        Toggle("I understand these can't be recovered", isOn: $isDataLossAcknowledged)
-                            .toggleStyle(.checkbox)
-                            .font(.system(size: 11, weight: .medium))
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(10)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.red.opacity(0.12)))
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.4), lineWidth: 1))
-                    .padding(.bottom, 6)
-                }
-                ForEach(items) { cat in
-                    HStack(spacing: 12) {
-                        Image(systemName: cat.icon)
-                            .foregroundColor(.accentColor)
-                            .frame(width: 24)
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) {
-                                Text(cat.name)
-                                    .font(.system(size: 13, weight: .medium))
-                                SafetyBadge(safety: cat.safety)
-                                if cat.isLargeDownload { LargeDownloadBadge(bytes: cat.cleanableBytes) }
-                            }
-                            Text(cat.info)
-                                .font(.system(size: 10))
-                                .foregroundColor(.secondary)
-                                .lineLimit(2)
-                                .truncationMode(.tail)
-                        }
-                        Spacer()
-                        Text(cat.commandSummary ?? cat.cleanableBytes.formattedSize)
-                            .font(.system(size: 12).monospacedDigit())
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.vertical, 10)
-                    Divider().padding(.leading, 36).opacity(0.1)
+                ForEach(sortedItems) { cat in
+                    CategoryRow(
+                        cat: cat,
+                        isScanning: false,
+                        isSelected: true,
+                        relativeWidth: CGFloat(cat.cleanableBytes) / CGFloat(maxSize),
+                        onTap: {}
+                    )
+                    Divider().padding(.leading, 48).opacity(0.1)
                 }
             }
         } actions: {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("TOTAL TO FREE").font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)
-                Text(totalSize.formattedSize).font(.system(size: 20, weight: .bold))
+            VStack(alignment: .leading, spacing: 14) {
+                // Its own row, next to the buttons it unlocks, so it never wraps
+                // and a disabled Delete is never a mystery.
+                if hasDataItems {
+                    Toggle("I understand items marked \"Your data\" can't be recovered", isOn: $isDataLossAcknowledged)
+                        .toggleStyle(.checkbox)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(isDataLossAcknowledged ? .secondary : .red)
+                }
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("TOTAL TO FREE").font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)
+                        Text(totalSize.formattedSize).font(.system(size: 20, weight: .bold))
+                    }
+                    Spacer()
+                    AppButton(title: "Cancel", style: .glass, action: onCancel)
+                    AppButton(title: "Delete Now", style: .primary,
+                              isEnabled: !hasDataItems || isDataLossAcknowledged, action: onConfirm)
+                }
             }
-            Spacer()
-            AppButton(title: "Cancel", style: .glass, action: onCancel)
-            AppButton(title: "Delete Now", style: .primary, isEnabled: dataItems.isEmpty || isDataLossAcknowledged, action: onConfirm)
+            .frame(maxWidth: .infinity)
         }
     }
 }

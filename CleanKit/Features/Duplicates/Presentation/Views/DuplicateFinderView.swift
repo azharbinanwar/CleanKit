@@ -154,7 +154,6 @@ struct DuplicateFinderView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .blur(radius: (confirm != nil || bulkConfirm || scanWarning != nil) ? 10 : 0)
         .overlay {
             if let payload = confirm {
                 singleDeleteConfirmDialog(payload)
