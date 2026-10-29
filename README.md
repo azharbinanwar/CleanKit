@@ -97,6 +97,10 @@ open CleanKit.xcodeproj
 
 Requires Xcode 26+ and macOS 15.0+. Running from Xcode builds **CleanKit Dev** (orange icon, separate bundle ID), so it never interferes with an installed CleanKit. See [CONTRIBUTING.md](CONTRIBUTING.md) to add a cleanup category or open a pull request.
 
+## Roadmap
+
+See what's planned next in [ROADMAP.md](ROADMAP.md). Ideas and votes are welcome as issues.
+
 ## Security
 
 Found a security problem? Please report it privately, see [SECURITY.md](SECURITY.md).
