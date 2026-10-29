@@ -1,15 +1,15 @@
 import SwiftUI
 
-/// Right-side drawer listing the sub-items of an expandable category (projects,
-/// runtimes, backups…) so the user can untick the ones to keep.
-struct ItemsDrawer: View {
+/// Replaces the category list (like the uninstaller's AppDetailPanel) to list
+/// an expandable category's sub-items (projects, runtimes, backups…) so the
+/// user can untick the ones to keep.
+struct CategoryDetailPanel: View {
     var manager: CleanupManager
     let category: CleanupCategory
     @Binding var selectedIDs: Set<UUID>
-    let onClose: () -> Void
+    let onBack: () -> Void
 
     @State private var items: [CleanupManager.CategoryEntry]?
-
 
     var body: some View {
         VStack(spacing: 0) {
@@ -45,32 +45,45 @@ struct ItemsDrawer: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(spacing: 14) {
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.secondary)
+                    .frame(width: 32, height: 32)
+                    .background(Color.primary.opacity(0.05))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.cancelAction)
+            .help("Back to the list")
             Image(systemName: category.icon)
-                .font(.system(size: 16))
+                .font(.system(size: 22))
                 .foregroundColor(.accentColor)
-                .frame(width: 22)
+                .frame(width: 32)
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    Text(category.name).font(.system(size: 14, weight: .bold))
+                    Text(category.name).font(.title3.bold())
                     SafetyBadge(safety: category.safety)
                     if category.isLargeDownload { LargeDownloadBadge(bytes: category.cleanableBytes) }
                 }
                 Text(category.info)
-                    .font(.system(size: 11))
+                    .font(.caption)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
-            Button(action: onClose) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 16))
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(category.cleanableBytes.formattedSize)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundColor(.accentColor)
+                Text("To Clean")
+                    .font(.system(size: 8, weight: .bold))
+                    .textCase(.uppercase)
                     .foregroundColor(.secondary)
             }
-            .buttonStyle(.plain)
-            .keyboardShortcut(.cancelAction)
         }
-        .padding(16)
+        .padding(20)
     }
 
     private func selectionBar(_ items: [CleanupManager.CategoryEntry]) -> some View {

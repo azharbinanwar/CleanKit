@@ -94,7 +94,7 @@ struct MacCleanerView: View {
     // Re-checked on appear and when the app becomes active, so the banner hides
     // as soon as the user grants Full Disk Access in System Settings.
     @State private var fullDiskGranted = AppPermission.fullDiskAccess.isGranted
-    @State private var drawerCategoryID: UUID?
+    @State private var detailCategoryID: UUID?
 
     var allGroupsTotal: Int64 {
         CleanupManager.dedupedSize(manager.categories)
@@ -128,17 +128,29 @@ struct MacCleanerView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.05), lineWidth: 1))
 
-                    CategoryPanel(
-                        manager: manager,
-                        group: selectedGroup,
-                        selectedIDs: $selectedIDs,
-                        onShowItems: { id in withAnimation(.easeInOut(duration: 0.25)) { drawerCategoryID = id } }
-                    )
+                    Group {
+                        if let id = detailCategoryID, let cat = manager.categories.first(where: { $0.id == id }) {
+                            CategoryDetailPanel(
+                                manager: manager,
+                                category: cat,
+                                selectedIDs: $selectedIDs,
+                                onBack: { withAnimation(.spring()) { detailCategoryID = nil } }
+                            )
+                        } else {
+                            CategoryPanel(
+                                manager: manager,
+                                group: selectedGroup,
+                                selectedIDs: $selectedIDs,
+                                onShowItems: { id in withAnimation(.spring()) { detailCategoryID = id } }
+                            )
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(.ultraThinMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.05), lineWidth: 1))
                 }
-                .overlay(alignment: .trailing) { entriesDrawer }
+                .onChange(of: selectedGroup.id) { detailCategoryID = nil }
 
                 bottomBar
                     .background(.ultraThinMaterial)
@@ -182,25 +194,6 @@ struct MacCleanerView: View {
             fullDiskGranted = AppPermission.fullDiskAccess.isGranted
         }
         .animation(.easeInOut(duration: 0.25), value: fullDiskGranted)
-    }
-
-    @ViewBuilder private var entriesDrawer: some View {
-        if let id = drawerCategoryID, let cat = manager.categories.first(where: { $0.id == id }) {
-            let close = { withAnimation(.easeInOut(duration: 0.25)) { drawerCategoryID = nil } }
-            ZStack(alignment: .trailing) {
-                Color.black.opacity(0.15)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .onTapGesture(perform: close)
-                    .transition(.opacity)
-                ItemsDrawer(manager: manager, category: cat, selectedIDs: $selectedIDs, onClose: close)
-                    .frame(width: 380)
-                    .background(.regularMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.08), lineWidth: 1))
-                    .shadow(color: .black.opacity(0.2), radius: 12, x: -4)
-                    .transition(.move(edge: .trailing))
-            }
-        }
     }
 
     /// "Your data" and large-download items are never pre-selected; the user must opt in.
@@ -433,7 +426,7 @@ struct CategoryPanel: View {
                                 }
                             }
                         }
-                        .padding(.vertical, 8)
+                        .padding(.bottom, 8)
                         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: foundCategories.count)
                     }
                 }
@@ -451,7 +444,7 @@ struct CategoryPanel: View {
             Spacer()
         }
         .padding(.horizontal, 20)
-        .padding(.top, 16)
+        .padding(.top, 12)
         .padding(.bottom, 8)
     }
 }
@@ -591,16 +584,28 @@ struct CategoryRow: View {
                     // 3. Loading or Data (Circular Progress)
                     HStack(spacing: 12) {
                         if !isScanning && !cat.isAccessDenied {
-                            Text(cat.sizeBytes > 0 ? cat.cleanableBytes.formattedSize : "0 KB")
-                                .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                                .foregroundColor(cat.sizeBytes > 0 ? .primary : .secondary)
+                            // Some sub-items kept: "to clean / total". All or none kept: the total.
+                            if !cat.excludedItems.isEmpty && cat.cleanableBytes > 0 {
+                                HStack(spacing: 3) {
+                                    Text(cat.cleanableBytes.formattedSize)
+                                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                                    Text("/ \(cat.sizeBytes.formattedSize)")
+                                        .font(.system(size: 10).monospacedDigit())
+                                        .foregroundColor(.secondary)
+                                }
+                                .fixedSize()
+                            } else {
+                                Text(cat.sizeBytes > 0 ? cat.sizeBytes.formattedSize : "0 KB")
+                                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                                    .foregroundColor(cat.sizeBytes > 0 ? .primary : .secondary)
+                            }
                         }
 
                         if isScanning {
                             ProgressView().controlSize(.mini)
                         }
                     }
-                    .frame(width: 64, alignment: .trailing)
+                    .frame(minWidth: 64, alignment: .trailing)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
