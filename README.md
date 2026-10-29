@@ -21,17 +21,21 @@ Re-run it any time to update. Prefer to drag-and-drop? See [Manual install](#man
 ## Features
 
 ### Mac Cleaner
-Scan and clean 80+ categories across Developer, Browsers, Apps, AI Tools, Gaming, System, Logs, and Commands. Each category is labeled by how safe it is to remove, and only the ones that exist on your Mac are shown.
+Scan and clean 90+ categories across Developer, Browsers, Apps, AI Tools, Gaming, System, Logs, and Commands, including old simulator runtimes, Android system images, and stale IDE versions. Only the ones that exist on your Mac are shown, and each is labeled by how safe it is to remove:
+
+- **Safe**: rebuilt automatically (build caches, app caches)
+- **Re-downloads**: comes back after a download (package caches, simulator runtimes)
+- **Your data**: can't be rebuilt (iOS backups, Xcode Archives, downloaded models). Never selected by default, and deleting it needs an extra confirmation.
 
 ![Mac Cleaner](screenshots/mac-cleaner.png)
 
 ### Large File Finder
-Find files taking up the most space. Filter by type, sort by size, and delete with one click.
+Find files taking up the most space. Filter by type, sort by size, and move them to the Trash with one click.
 
 ![Large File Finder](screenshots/large-file-finder.png)
 
 ### Duplicate Finder
-3-pass content hashing to find exact duplicates. Choose what to keep, and the rest gets deleted.
+3-pass content hashing to find exact duplicates. Choose what to keep, and the rest goes to the Trash.
 
 ![Duplicate Finder](screenshots/duplicate-finder.png)
 
@@ -91,13 +95,19 @@ cd CleanKit
 open CleanKit.xcodeproj
 ```
 
-Requires Xcode 16+ and macOS 15.0+.
+Requires Xcode 26+ and macOS 15.0+. Running from Xcode builds **CleanKit Dev** (orange icon, separate bundle ID), so it never interferes with an installed CleanKit. See [CONTRIBUTING.md](CONTRIBUTING.md) to add a cleanup category or open a pull request.
+
+## Security
+
+Found a security problem? Please report it privately, see [SECURITY.md](SECURITY.md).
 
 ---
 
 ## License
 
 MIT. See [LICENSE](LICENSE)
+
+Several developer cleanup targets (simulator runtimes, Android system images, old Android Studio settings, and more) are adapted from [dev-disk-cleanup](https://github.com/dev-mohsin/dev-disk-cleanup) (MIT).
 
 ---
 

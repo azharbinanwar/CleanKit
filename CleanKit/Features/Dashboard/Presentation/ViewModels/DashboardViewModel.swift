@@ -25,7 +25,7 @@ final class DashboardViewModel {
     }
     
     var cleanerLabel: String {
-        if manager.isScanning { return "Scanning..." }
+        if manager.isScanning { return "Scanning…" }
         let total = CleanupManager.dedupedSize(manager.categories)
         return total > 0 ? total.formattedSize : "Scan Now"
     }

@@ -1,0 +1,25 @@
+# Every pull request and every push to main must build.
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          xcodebuild -project CleanKit.xcodeproj -scheme CleanKit -configuration Release \
+            CODE_SIGN_IDENTITY=- -quiet build

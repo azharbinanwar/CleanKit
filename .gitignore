@@ -23,3 +23,6 @@ build/
 
 # Packages
 .build/
+
+# Release output
+dist/

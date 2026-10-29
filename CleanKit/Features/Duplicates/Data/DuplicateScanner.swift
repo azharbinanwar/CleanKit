@@ -55,19 +55,19 @@ final class DuplicateScanner {
     func scan(in root: URL) async {
         isScanning = true
         groups = []
-        scanPhase = "Pass 1 of 3: Indexing files"
+        scanPhase = "Step 1 of 3: Indexing files"
         let bySize = await Task.detached(priority: .userInitiated) {
             Self.groupBySize(in: root)
         }.value
 
         let candidateCount = bySize.values.filter { $0.count > 1 }.flatMap { $0 }.count
-        scanPhase = "Pass 2 of 3: Quick hash on \(candidateCount.formatted()) candidates"
+        scanPhase = "Step 2 of 3: Checking \(candidateCount.formatted()) possible matches"
         let byPartial = await Task.detached(priority: .userInitiated) {
             Self.filterByPartialHash(bySize)
         }.value
 
         let deepCount = byPartial.values.filter { $0.urls.count > 1 }.flatMap { $0.urls }.count
-        scanPhase = "Pass 3 of 3: Deep comparison of \(deepCount.formatted()) files"
+        scanPhase = "Step 3 of 3: Comparing \(deepCount.formatted()) files in full"
         let found = await Task.detached(priority: .userInitiated) {
             Self.buildGroups(byPartial)
         }.value
@@ -77,15 +77,23 @@ final class DuplicateScanner {
         scanPhase = ""
     }
 
-    func delete(keeping keepURL: URL, in groupID: UUID) async -> Int64 {
-        guard let group = groups.first(where: { $0.id == groupID }) else { return 0 }
+    /// Moves every copy except `keepURL` to the Trash (recoverable) and returns
+    /// the bytes of the copies that actually moved.
+    func moveDuplicatesToTrash(keeping keepURL: URL, in groupID: UUID) async -> Int64 {
+        guard let index = groups.firstIndex(where: { $0.id == groupID }) else { return 0 }
+        let group = groups[index]
         let toDelete = group.files.filter { $0.url != keepURL }.map(\.url)
-        let freed = group.fileSize * Int64(toDelete.count)
-        await Task.detached(priority: .userInitiated) {
-            for url in toDelete { try? FileManager.default.removeItem(at: url) }
+        let trashed = await Task.detached(priority: .userInitiated) { () -> Set<URL> in
+            let fm = FileManager.default
+            return Set(toDelete.filter { (try? fm.trashItem(at: $0, resultingItemURL: nil)) != nil })
         }.value
-        groups.removeAll { $0.id == groupID }
-        return freed
+        let remaining = group.files.filter { !trashed.contains($0.url) }
+        if remaining.count > 1, let i = groups.firstIndex(where: { $0.id == groupID }) {
+            groups[i].files = remaining
+        } else {
+            groups.removeAll { $0.id == groupID }
+        }
+        return group.fileSize * Int64(trashed.count)
     }
 
     private static nonisolated func quickCount(in root: URL) -> Int {

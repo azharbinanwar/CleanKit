@@ -48,14 +48,15 @@ final class LargeFileScanner {
         isScanning = false
     }
 
-    func delete(_ targets: [LargeFile]) async {
+    /// Moves files to the Trash (recoverable). Only files that actually moved
+    /// leave the list.
+    func moveToTrash(_ targets: [LargeFile]) async {
         let urls = targets.map(\.url)
-        await Task.detached(priority: .userInitiated) {
+        let trashed = await Task.detached(priority: .userInitiated) { () -> Set<URL> in
             let fm = FileManager.default
-            for url in urls { try? fm.removeItem(at: url) }
+            return Set(urls.filter { (try? fm.trashItem(at: $0, resultingItemURL: nil)) != nil })
         }.value
-        let ids = Set(targets.map(\.id))
-        files.removeAll { ids.contains($0.id) }
+        files.removeAll { trashed.contains($0.url) }
     }
 
     private static nonisolated func findFiles(in root: URL, threshold: Int64) -> [LargeFile] {

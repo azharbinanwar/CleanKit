@@ -85,6 +85,11 @@ final class UpdateChecker {
 
     func downloadAndInstall() async {
         guard case .available(let version) = phase else { return }
+        #if DEBUG
+        // The installer swaps /Applications/CleanKit.app, the real install.
+        phase = .failed("Updates are disabled in CleanKit Dev. Install releases from GitHub.")
+        return
+        #endif
         phase = .downloading(progress: 0)
         do {
             let base = "https://github.com/\(Self.repo)/releases/download/v\(version)"
@@ -132,7 +137,7 @@ final class UpdateChecker {
             let digest = hasher.finalize().map { String(format: "%02x", $0) }.joined()
             guard digest == expected else {
                 try? FileManager.default.removeItem(at: dmgURL)
-                phase = .failed("The download didn't match its published checksum. Try again.")
+                phase = .failed("The download looks damaged. Try again.")
                 return
             }
 

@@ -13,6 +13,7 @@ struct CleanerGroup: Identifiable {
         CleanerGroup(
             id: "developer", name: "Developer", icon: "hammer", color: .accentColor,
             categoryNames: [
+                CleanupCategory.simulatorRuntimesName, "Simulator Device Data",
                 "Xcode DerivedData", "Xcode Archives", "Xcode iOS Device Support",
                 "Xcode watchOS Device Support", "Xcode tvOS Device Support",
                 "Xcode Previews", "Simulator Caches", "Xcode Cache",
@@ -24,8 +25,9 @@ struct CleanerGroup: Identifiable {
                 "Maven Local Repo", "Cargo Registry Cache", "Go Module Cache",
                 "Swift Package Manager", "Deno Cache", "Bun Cache",
                 "Composer Cache", "Helm Cache", "Terraform Plugin Cache", "Playwright Browsers",
-                "Android AVD", "Android Cache",
-                "JetBrains Caches", "VS Code Cache", "VS Code Updater", "Cursor Cache"
+                "Android AVD", "Android System Images", "Old Android Studio Settings", "Android Cache",
+                "Dart Analysis Server", "Electron & node-gyp Downloads", "Cypress Binaries",
+                "JetBrains Caches", "VS Code Cache", "VS Code Updater", "Cursor Cache", "Windsurf Cache"
             ]
         ),
         CleanerGroup(
@@ -92,6 +94,7 @@ struct MacCleanerView: View {
     // Re-checked on appear and when the app becomes active, so the banner hides
     // as soon as the user grants Full Disk Access in System Settings.
     @State private var fullDiskGranted = AppPermission.fullDiskAccess.isGranted
+    @State private var drawerCategoryID: UUID?
 
     var allGroupsTotal: Int64 {
         CleanupManager.dedupedSize(manager.categories)
@@ -128,12 +131,14 @@ struct MacCleanerView: View {
                     CategoryPanel(
                         manager: manager,
                         group: selectedGroup,
-                        selectedIDs: $selectedIDs
+                        selectedIDs: $selectedIDs,
+                        onShowItems: { id in withAnimation(.easeInOut(duration: 0.25)) { drawerCategoryID = id } }
                     )
                     .background(.ultraThinMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.05), lineWidth: 1))
                 }
+                .overlay(alignment: .trailing) { entriesDrawer }
 
                 bottomBar
                     .background(.ultraThinMaterial)
@@ -143,7 +148,6 @@ struct MacCleanerView: View {
             .blur(radius: confirmPayload != nil ? 10 : 0)
             .disabled(confirmPayload != nil)
 
-            // MAGIC OVERLAY
             if let payload = confirmPayload {
                 ConfirmSheet(items: payload.items, onCancel: {
                     withAnimation(.spring()) { confirmPayload = nil }
@@ -180,8 +184,30 @@ struct MacCleanerView: View {
         .animation(.easeInOut(duration: 0.25), value: fullDiskGranted)
     }
 
+    @ViewBuilder private var entriesDrawer: some View {
+        if let id = drawerCategoryID, let cat = manager.categories.first(where: { $0.id == id }) {
+            let close = { withAnimation(.easeInOut(duration: 0.25)) { drawerCategoryID = nil } }
+            ZStack(alignment: .trailing) {
+                Color.black.opacity(0.15)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .onTapGesture(perform: close)
+                    .transition(.opacity)
+                ItemsDrawer(manager: manager, category: cat, selectedIDs: $selectedIDs, onClose: close)
+                    .frame(width: 380)
+                    .background(.regularMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+                    .shadow(color: .black.opacity(0.2), radius: 12, x: -4)
+                    .transition(.move(edge: .trailing))
+            }
+        }
+    }
+
+    /// "Your data" and large-download items are never pre-selected; the user must opt in.
     private func autoSelectableIDs() -> [UUID] {
-        manager.categories.filter { $0.sizeBytes > 0 || $0.shellCommand != nil }.map { $0.id }
+        manager.categories
+            .filter { $0.safety != .data && !$0.isLargeDownload && ($0.sizeBytes > 0 || $0.shellCommand != nil) }
+            .map { $0.id }
     }
 
     private var header: some View {
@@ -191,11 +217,7 @@ struct MacCleanerView: View {
                 manager.categories = categorySettings.enabledCategories
                 Task {
                     await manager.scanAll()
-                    // Select all items that have data by default
-                    let autoSelect = manager.categories.filter { $0.sizeBytes > 0 || $0.shellCommand != nil }
-                    withAnimation(.spring()) {
-                        selectedIDs = Set(autoSelect.map { $0.id })
-                    }
+                    withAnimation(.spring()) { selectedIDs = Set(autoSelectableIDs()) }
                 }
             }
         }
@@ -308,6 +330,7 @@ struct CategoryPanel: View {
     var manager: CleanupManager
     let group: CleanerGroup
     @Binding var selectedIDs: Set<UUID>
+    let onShowItems: (UUID) -> Void
     @State private var sortLargest = true
 
     var groupCategories: [CleanupCategory] {
@@ -358,7 +381,7 @@ struct CategoryPanel: View {
                         VStack(spacing: 4) {
                             Text(group.name)
                                 .font(.system(size: 18, weight: .bold))
-                            Text("No items require attention in this category.")
+                            Text("Nothing to clean here.")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
@@ -381,7 +404,8 @@ struct CategoryPanel: View {
                                             } else {
                                                 selectedIDs.insert(cat.id)
                                             }
-                                        }
+                                        },
+                                        onShowItems: cat.expandable ? { onShowItems(cat.id) } : nil
                                     )
                                     .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
                                     Divider().padding(.leading, 48).opacity(0.1)
@@ -455,12 +479,27 @@ struct SafetyBadge: View {
     }
 }
 
+/// Shown next to SafetyBadge when getting the item back means a 5 GB+ download.
+struct LargeDownloadBadge: View {
+    let bytes: Int64
+    var body: some View {
+        Label("Large download", systemImage: "icloud.and.arrow.down")
+            .font(.system(size: 8, weight: .bold))
+            .foregroundColor(.orange)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(Capsule().fill(Color.orange.opacity(0.15)))
+            .help("About \(bytes.formattedSize) to download again if you need it back")
+    }
+}
+
 struct CategoryRow: View {
     let cat: CleanupCategory
     let isScanning: Bool
     let isSelected: Bool
     let relativeWidth: CGFloat
     let onTap: () -> Void
+    var onShowItems: (() -> Void)? = nil
 
     var isSelectable: Bool {
         !isScanning && !cat.isAccessDenied && (cat.sizeBytes > 0 || cat.shellCommand != nil)
@@ -502,11 +541,12 @@ struct CategoryRow: View {
                                 .font(.system(size: 13, weight: .medium))
                                 .foregroundColor(cat.isAccessDenied ? .orange : (isSelectable ? .primary : .secondary.opacity(0.6)))
                             SafetyBadge(safety: cat.safety)
+                            if cat.isLargeDownload { LargeDownloadBadge(bytes: cat.cleanableBytes) }
                         }
 
                         if cat.isAccessDenied {
                             HStack(spacing: 4) {
-                                Text("Permission Denied")
+                                Text("Needs Full Disk Access")
                                     .font(.system(size: 10, weight: .bold))
                                     .foregroundColor(.orange)
 
@@ -521,7 +561,7 @@ struct CategoryRow: View {
                                 .buttonStyle(.plain)
                             }
                         } else {
-                            Text(cat.info)
+                            Text(cat.excludedItems.isEmpty ? cat.info : "\(cat.excludedItems.count) kept · \(cat.info)")
                                 .font(.system(size: 10))
                                 .foregroundColor(.secondary)
                                 .lineLimit(1)
@@ -532,25 +572,35 @@ struct CategoryRow: View {
 
                     Spacer()
 
+                    if let onShowItems, isSelectable, cat.sizeBytes > 0 {
+                        Button(action: onShowItems) {
+                            HStack(spacing: 3) {
+                                Text("Choose")
+                                Image(systemName: "chevron.right")
+                            }
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.accentColor)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                        }
+                        .buttonStyle(.plain)
+                        .help("Pick which ones to clean")
+                    }
+
                     // 3. Loading or Data (Circular Progress)
                     HStack(spacing: 12) {
                         if !isScanning && !cat.isAccessDenied {
-                            Text(cat.sizeBytes > 0 ? cat.sizeBytes.formattedSize : "0 KB")
+                            Text(cat.sizeBytes > 0 ? cat.cleanableBytes.formattedSize : "0 KB")
                                 .font(.system(size: 11, weight: .semibold).monospacedDigit())
                                 .foregroundColor(cat.sizeBytes > 0 ? .primary : .secondary)
                         }
 
-                        if !cat.isAccessDenied {
-                            GroupRing(
-                                color: .accentColor,
-                                fraction: Double(relativeWidth),
-                                isSpinning: isScanning,
-                                size: 14,
-                                strokeWidth: 1.5
-                            )
+                        if isScanning {
+                            ProgressView().controlSize(.mini)
                         }
                     }
-                    .frame(width: 80, alignment: .trailing)
+                    .frame(width: 64, alignment: .trailing)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
@@ -571,16 +621,42 @@ struct ConfirmSheet: View {
     let items: [CleanupCategory]
     let onCancel: () -> Void
     let onConfirm: () -> Void
+    /// "Your data" items can't be rebuilt, so Delete stays disabled until the
+    /// user explicitly acknowledges that.
+    @State private var isDataLossAcknowledged = false
 
     var totalSize: Int64 { CleanupManager.dedupedSize(items) }
+    private var dataItems: [CleanupCategory] { items.filter { $0.safety == .data } }
 
     var body: some View {
         AppDialog(
-            title: "Confirm Cleanup",
-            subtitle: "Verify items to be permanently deleted",
+            title: "Delete These Items?",
+            subtitle: "Deleted items skip the Trash and can't be restored.",
             onDismiss: onCancel
         ) {
             VStack(spacing: 0) {
+                if !dataItems.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "exclamationmark.octagon.fill").foregroundColor(.red)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("This includes your own data")
+                                    .font(.system(size: 12, weight: .bold))
+                                Text("\(dataItems.map(\.name).joined(separator: ", ")) can't be rebuilt or re-downloaded. Once deleted, it is gone for good.")
+                                    .font(.system(size: 11))
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        Toggle("I understand these can't be recovered", isOn: $isDataLossAcknowledged)
+                            .toggleStyle(.checkbox)
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.red.opacity(0.12)))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.4), lineWidth: 1))
+                    .padding(.bottom, 6)
+                }
                 ForEach(items) { cat in
                     HStack(spacing: 12) {
                         Image(systemName: cat.icon)
@@ -591,15 +667,16 @@ struct ConfirmSheet: View {
                                 Text(cat.name)
                                     .font(.system(size: 13, weight: .medium))
                                 SafetyBadge(safety: cat.safety)
+                                if cat.isLargeDownload { LargeDownloadBadge(bytes: cat.cleanableBytes) }
                             }
                             Text(cat.info)
                                 .font(.system(size: 10))
                                 .foregroundColor(.secondary)
-                                .lineLimit(1)
+                                .lineLimit(2)
                                 .truncationMode(.tail)
                         }
                         Spacer()
-                        Text(cat.sizeBytes.formattedSize)
+                        Text(cat.cleanableBytes.formattedSize)
                             .font(.system(size: 12).monospacedDigit())
                             .foregroundColor(.secondary)
                     }
@@ -614,7 +691,7 @@ struct ConfirmSheet: View {
             }
             Spacer()
             AppButton(title: "Cancel", style: .glass, action: onCancel)
-            AppButton(title: "Delete Now", style: .primary, action: onConfirm)
+            AppButton(title: "Delete Now", style: .primary, isEnabled: dataItems.isEmpty || isDataLossAcknowledged, action: onConfirm)
         }
     }
 }
@@ -628,7 +705,7 @@ struct CleanAllView: View {
     @State private var progress: Double = 0
     var body: some View {
         VStack(spacing: 32) {
-            Text("Cleaning...").font(.title2.bold())
+            Text("Cleaning…").font(.title2.bold())
             ProgressView(value: progress).frame(width: 300)
             Text(currentName).font(.subheadline)
         }
@@ -657,11 +734,11 @@ struct DoneView: View {
 
     var body: some View {
         AppResultView(
-            title: "Mission Accomplished",
-            subtitle: "Your Mac is feeling much lighter now.",
+            title: "Cleanup Complete",
+            subtitle: "Space is measured on disk after cleaning.",
             stats: [
-                (label: "Freed", value: manager.totalFreedBytes.formattedSize, icon: "externaldrive.badge.checkmark"),
-                (label: "Recovered", value: manager.diskActuallyFreed.formattedSize, icon: "arrow.down.left.circle")
+                (label: "Cleaned", value: manager.totalFreedBytes.formattedSize, icon: "externaldrive.badge.checkmark"),
+                (label: "Free Space Gained", value: manager.diskActuallyFreed.formattedSize, icon: "arrow.down.left.circle")
             ]
         ) {
             AppButton(title: "Done", style: .primary, action: onBack)

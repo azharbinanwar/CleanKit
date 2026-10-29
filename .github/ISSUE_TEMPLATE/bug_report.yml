@@ -1,0 +1,37 @@
+name: Bug report
+description: CleanKit did something wrong or unexpected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If CleanKit deleted files it shouldn't have, or this is a security problem,
+        please report it privately instead: see [SECURITY.md](https://github.com/azharbinanwar/CleanKit/blob/main/SECURITY.md).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Which screen, which items, what you clicked.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: input
+    id: cleankit
+    attributes:
+      label: CleanKit version
+      description: Shown in Settings.
+      placeholder: "1.0.5"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "macOS 26.1"
+    validations:
+      required: true

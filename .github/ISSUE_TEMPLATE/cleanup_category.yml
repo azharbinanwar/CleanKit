@@ -1,0 +1,34 @@
+name: Cleanup category request
+description: Suggest a cache or folder CleanKit should clean
+labels: [category]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Tool or app
+      placeholder: "Bun"
+    validations:
+      required: true
+  - type: textarea
+    id: paths
+    attributes:
+      label: Folder(s) to clean
+      placeholder: "~/.bun/install/cache"
+    validations:
+      required: true
+  - type: dropdown
+    id: safety
+    attributes:
+      label: What happens after it's cleaned?
+      options:
+        - Rebuilt automatically (Safe)
+        - Re-downloaded when needed (Re-downloads)
+        - Lost for good (Your data)
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: How do you know it's safe?
+      description: A link to the tool's docs, or what you tested.

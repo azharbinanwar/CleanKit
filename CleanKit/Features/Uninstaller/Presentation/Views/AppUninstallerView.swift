@@ -194,7 +194,7 @@ struct AppUninstallerView: View {
                 VStack(spacing: 20) {
                     Spacer()
                     AppLoading(size: 32, strokeWidth: 2)
-                    Text("Analyzing your Applications folder...").font(.subheadline).foregroundColor(.secondary)
+                    Text("Analyzing your Applications folder…").font(.subheadline).foregroundColor(.secondary)
                     Spacer()
                 }
             } else if filteredApps.isEmpty {
@@ -230,11 +230,11 @@ struct AppUninstallerView: View {
     }
     
     private var header: some View {
-        AppHeader(title: "Uninstaller", subtitle: "Remove applications and hidden leftovers") {
+        AppHeader(title: "App Uninstaller", subtitle: "Remove applications and hidden leftovers") {
             HStack(spacing: 16) {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass").foregroundColor(.secondary)
-                    TextField("Search apps...", text: $searchText)
+                    TextField("Search apps…", text: $searchText)
                         .textFieldStyle(.plain)
                         .font(.system(size: 12))
                 }
@@ -440,7 +440,7 @@ struct AppDetailPanel: View {
             if app.isProtected {
                 AppBanner(
                     icon: "exclamationmark.shield.fill",
-                    message: "macOS system app. It may refuse to uninstall or be restored by the system."
+                    message: "This is a macOS system app. macOS may not let you remove it."
                 )
                 .padding(.horizontal, 24)
                 .padding(.bottom, 12)
@@ -448,7 +448,7 @@ struct AppDetailPanel: View {
 
             Divider().opacity(0.1)
             if app.isScanning {
-                VStack { Spacer(); AppLoading(size: 32); Text("Finding related files...").font(.subheadline).foregroundColor(.secondary); Spacer() }
+                VStack { Spacer(); AppLoading(size: 32); Text("Finding related files…").font(.subheadline).foregroundColor(.secondary); Spacer() }
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {

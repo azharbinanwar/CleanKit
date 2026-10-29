@@ -203,7 +203,7 @@ struct DuplicateFinderView: View {
     private var footer: some View {
         HStack(spacing: 12) {
             HStack(spacing: 4) {
-                Text("Found Wasted:").font(.system(size: 13, weight: .medium)).foregroundColor(.secondary)
+                Text("Wasted space:").font(.system(size: 13, weight: .medium)).foregroundColor(.secondary)
                 RollingSizeView(value: totalWasted).font(.system(size: 13, weight: .bold))
             }
             
@@ -216,7 +216,7 @@ struct DuplicateFinderView: View {
                         RollingSizeView(value: totalSelectedWasted).font(.system(size: 13, weight: .bold))
                     }
                     
-                    AppButton(title: "Delete All", style: .primary) { bulkConfirm = true }
+                    AppButton(title: "Clean Up Duplicates", style: .primary) { bulkConfirm = true }
                 }
             }
         }
@@ -289,8 +289,8 @@ struct DuplicateFinderView: View {
     private func singleDeleteConfirmDialog(_ payload: DeleteConfirm) -> some View {
         let deleteCount = payload.group.files.count - 1
         return AppDialog(
-            title: "Delete Group Copies",
-            subtitle: "Permanently remove \(deleteCount) identical copies?",
+            title: "Move Copies to Trash",
+            subtitle: "Move \(deleteCount) identical \(deleteCount == 1 ? "copy" : "copies") to the Trash?",
             onDismiss: { confirm = nil }
         ) {
             VStack(spacing: 20) {
@@ -331,14 +331,14 @@ struct DuplicateFinderView: View {
         } actions: {
             Spacer()
             AppButton(title: "Cancel", style: .glass) { confirm = nil }
-            AppButton(title: "Delete Now", style: .primary) {
+            AppButton(title: "Move to Trash", style: .primary) {
                 let groupID = payload.group.id
                 let keepURL = payload.keepURL
                 let size = payload.group.wastedBytes
                 confirm = nil
                 selectedGroupID = nil
                 Task {
-                    await scanner.delete(keeping: keepURL, in: groupID)
+                    await scanner.moveDuplicatesToTrash(keeping: keepURL, in: groupID)
                     lastFreedSize = size
                     withAnimation { currentScreen = .result }
                 }
@@ -348,8 +348,8 @@ struct DuplicateFinderView: View {
 
     private var bulkDeleteConfirmDialog: some View {
         AppDialog(
-            title: "Delete All",
-            subtitle: "Process \(selectedGroupIDs.count) duplicate groups",
+            title: "Clean Up Duplicates",
+            subtitle: "\(selectedGroupIDs.count) duplicate \(selectedGroupIDs.count == 1 ? "group" : "groups") selected",
             onDismiss: { bulkConfirm = false }
         ) {
             VStack(spacing: 24) {
@@ -358,10 +358,10 @@ struct DuplicateFinderView: View {
                         .font(.system(size: 40, weight: .thin))
                         .foregroundColor(.accentColor)
                     
-                    Text("Choose a strategy for deletion.")
+                    Text("Choose which copy to keep in each group.")
                         .font(.headline)
                     
-                    Text("Duplicates will be permanently removed. This will free up \(totalSelectedWasted.formattedSize).")
+                    Text("Duplicates will be moved to the Trash. Empty the Trash to free up \(totalSelectedWasted.formattedSize).")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -487,9 +487,9 @@ struct DuplicateFinderView: View {
 
     private var resultView: some View {
         AppResultView(
-            title: "Duplicates Removed",
-            subtitle: "Your disk is now cleaner.",
-            stats: [(label: "Recovered", value: lastFreedSize.formattedSize, icon: "doc.on.doc")]
+            title: "Duplicates Moved to Trash",
+            subtitle: "Empty the Trash to free the space.",
+            stats: [(label: "In Trash", value: lastFreedSize.formattedSize, icon: "doc.on.doc")]
         ) {
             AppButton(title: "Done", style: .primary) { 
                 selectedGroupIDs = []
@@ -504,9 +504,9 @@ struct DuplicateFinderView: View {
         VStack(spacing: 20) {
             AppLoading(size: 32)
             VStack(spacing: 4) {
-                Text(scanner.isCounting ? "Counting..." : "Searching...")
+                Text(scanner.isCounting ? "Counting…" : "Searching…")
                     .font(.system(size: 15, weight: .bold))
-                Text(scanner.scanPhase.isEmpty ? "Preparing..." : scanner.scanPhase)
+                Text(scanner.scanPhase.isEmpty ? "Preparing…" : scanner.scanPhase)
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
@@ -596,7 +596,7 @@ struct DuplicateFinderView: View {
                     return keepStrategy == .oldest ? d0 < d1 : d0 > d1
                 }
                 if let keep = sorted.first?.url {
-                    await scanner.delete(keeping: keep, in: group.id)
+                    await scanner.moveDuplicatesToTrash(keeping: keep, in: group.id)
                 }
             }
             lastFreedSize = totalToFree
@@ -737,7 +737,7 @@ struct GroupDetailPanel: View {
             
             HStack {
                 Spacer()
-                AppButton(title: "Delete Group Copies", icon: "trash", style: .primary, action: onDelete)
+                AppButton(title: "Move Copies to Trash", icon: "trash", style: .primary, action: onDelete)
             }
             .padding(24)
         }

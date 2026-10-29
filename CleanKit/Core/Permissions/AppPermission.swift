@@ -1,37 +1,31 @@
 import SwiftUI
-import ApplicationServices
 
 enum AppPermission: String, CaseIterable, Identifiable {
     case fullDiskAccess
-    case accessibility
 
     var id: String { rawValue }
 
     var name: String {
         switch self {
         case .fullDiskAccess: return "Full Disk Access"
-        case .accessibility:  return "Accessibility"
         }
     }
 
     var icon: String {
         switch self {
         case .fullDiskAccess: return "internaldrive"
-        case .accessibility:  return "hand.raised"
         }
     }
 
     var color: Color {
         switch self {
         case .fullDiskAccess: return .orange
-        case .accessibility:  return .blue
         }
     }
 
     var reason: String {
         switch self {
         case .fullDiskAccess: return "Required to scan ~/Library and other protected folders"
-        case .accessibility:  return "Required for Port Manager to kill processes"
         }
     }
 
@@ -56,8 +50,6 @@ enum AppPermission: String, CaseIterable, Identifiable {
                 if (try? fm.contentsOfDirectory(atPath: path)) != nil { return true }
             }
             return false
-        case .accessibility:
-            return AXIsProcessTrusted()
         }
     }
 
@@ -65,8 +57,6 @@ enum AppPermission: String, CaseIterable, Identifiable {
         switch self {
         case .fullDiskAccess:
             return URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!
-        case .accessibility:
-            return URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
         }
     }
 }

@@ -130,13 +130,13 @@ private struct GeneralSettings: View {
                 Divider().opacity(0.4)
 
                 // Software Update
-                groupLabel("Software Update")
+                groupLabel("Updates")
                 SettingRow(title: "Software Updates", subtitle: statusText, icon: "arrow.down.circle") {
                     updateControl
                 }
                 if case .available(let v) = checker.phase {
                     SettingRow(title: "Version \(v) is available",
-                               subtitle: "Downloads, verifies with SHA-256, and installs automatically. CleanKit relaunches when done.",
+                               subtitle: "Downloads, checks and installs the update. CleanKit restarts when done.",
                                icon: "sparkles", tint: .accentColor) {
                         AppButton(title: "Install", icon: "arrow.down.circle", style: .primary) {
                             Task { await checker.downloadAndInstall() }
@@ -219,7 +219,7 @@ private struct GeneralSettings: View {
         case .available:
             EmptyView()
         default:
-            AppButton(title: "Check", style: .glass) { Task { await checker.check() } }
+            AppButton(title: "Check Now", style: .glass) { Task { await checker.check() } }
         }
     }
 

@@ -34,7 +34,7 @@ struct DashboardView: View {
                 // 1. Full Width Top Card
                 StorageGauge(
                     title: "Macintosh HD",
-                    subtitle: "Disk health is optimal",
+                    subtitle: viewModel.storageInfo.usedFraction > 0.9 ? "Running low on space" : "Plenty of space left",
                     usedFraction: viewModel.storageInfo.usedFraction,
                     details: [
                         (label: "Available", value: viewModel.storageInfo.free.formattedSize),

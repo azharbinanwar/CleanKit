@@ -1,0 +1,68 @@
+# Pushing a version tag is the release.
+#
+#   1. bump MARKETING_VERSION in Xcode (e.g. 1.0.5) and merge it to main
+#   2. git tag v1.0.5 && git push origin v1.0.5
+#
+# The tag must match the app's version, so v1.0.5 can never ship an app that
+# reports 1.0.4.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag matches app version
+        id: version
+        run: |
+          v=$(xcodebuild -project CleanKit.xcodeproj -scheme CleanKit -configuration Release -showBuildSettings \
+                | awk '$1 == "MARKETING_VERSION" {print $3; exit}')
+          [ -n "$v" ] || { echo "::error::Could not read MARKETING_VERSION"; exit 1; }
+          if [ "$GITHUB_REF_NAME" != "v$v" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match the app version $v. Bump MARKETING_VERSION or fix the tag."
+            exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      # Self-signed certificate (free, no Apple account). Signing every release with
+      # the same certificate keeps users' Full Disk Access grant across updates.
+      - name: Signing certificate
+        env:
+          P12: ${{ secrets.SIGNING_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.SIGNING_P12_PASSWORD }}
+        run: |
+          [ -n "$P12" ] || { echo "::error::SIGNING_P12_BASE64 secret is missing"; exit 1; }
+          kc="$RUNNER_TEMP/signing.keychain-db"
+          security create-keychain -p ci "$kc"
+          security set-keychain-settings -lut 3600 "$kc"
+          security unlock-keychain -p ci "$kc"
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/signing.p12"
+          security import "$RUNNER_TEMP/signing.p12" -k "$kc" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci "$kc"
+          rm "$RUNNER_TEMP/signing.p12"
+          echo "SIGN_KEYCHAIN=$kc" >> "$GITHUB_ENV"
+          echo "SIGN_IDENTITY=CleanKit Self-Signed" >> "$GITHUB_ENV"
+
+      - name: Build and package
+        run: scripts/build-dmg.sh
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "v$VERSION" dist/CleanKit.dmg dist/CleanKit.dmg.sha256 \
+            --title "CleanKit $VERSION" --verify-tag --generate-notes

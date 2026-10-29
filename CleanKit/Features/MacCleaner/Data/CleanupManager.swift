@@ -26,7 +26,7 @@ final class CleanupManager {
 
     /// Elevated work collected during a run so the whole run needs at most
     /// ONE admin password prompt (flushed in `endCleanRun`).
-    struct ElevatedWork {
+    nonisolated struct ElevatedWork {
         var commands: [String] = []
         var failedItems: [(url: URL, size: Int64)] = []
         var isEmpty: Bool { commands.isEmpty && failedItems.isEmpty }
@@ -55,7 +55,7 @@ final class CleanupManager {
             let result = await Self.runElevated(pendingElevated)
             if result.cancelled {
                 elevationCancelled = true
-                cleanErrors.append("Password prompt cancelled. Items needing admin access were skipped")
+                cleanErrors.append("You cancelled the password prompt. Items that need admin access were skipped. Clean again to retry.")
             } else if let err = result.error {
                 cleanErrors.append(err)
             }
@@ -106,11 +106,67 @@ final class CleanupManager {
         }
         let remaining = work.failedItems.filter { fm.fileExists(atPath: $0.url.path) }.count
         if remaining > 0 && errorMessage == nil && !cancelled {
-            errorMessage = "\(remaining) item(s) blocked. Grant Full Disk Access in System Settings → Privacy & Security"
+            errorMessage = "\(remaining) \(remaining == 1 ? "item" : "items") couldn't be removed. Give CleanKit Full Disk Access in System Settings, then clean again."
         }
         return (freed, errorMessage, cancelled)
     }
     var selectedIDs: Set<UUID>? = nil
+
+    /// One thing inside an expandable category: a project's DerivedData, a
+    /// simulator runtime, a device backup. `id` is its path or runtime ID.
+    nonisolated struct CategoryEntry: Identifiable, Sendable {
+        let id: String
+        let name: String
+        let size: Int64
+    }
+
+    /// The sub-items cleaning would remove, largest first.
+    func entries(of category: CleanupCategory) async -> [CategoryEntry] {
+        await Task.detached(priority: .userInitiated) {
+            if category.name == CleanupCategory.simulatorRuntimesName {
+                return Self.supersededRuntimes().map { CategoryEntry(id: $0.id, name: $0.name, size: $0.size) }
+            }
+            let fm = FileManager.default
+            // Versioned folders (keepNewestPrefix) are the units themselves;
+            // otherwise each entry inside a cleaned folder is one item.
+            if category.keepNewestPrefix != nil {
+                // Same version name appears under Application Support, Caches and
+                // Logs, so say which one.
+                return category.resolvedPaths.map { URL(fileURLWithPath: $0) }
+                    .map { url in
+                        let kind = url.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent
+                        return CategoryEntry(id: url.path, name: "\(url.lastPathComponent) · \(kind)", size: Self.size(of: url))
+                    }
+                    .sorted { $0.size > $1.size }
+            }
+            return category.resolvedPaths
+                .flatMap { (try? fm.contentsOfDirectory(at: URL(fileURLWithPath: $0), includingPropertiesForKeys: nil)) ?? [] }
+                .map { CategoryEntry(id: $0.path, name: Self.displayName(of: $0), size: Self.size(of: $0)) }
+                .sorted { $0.size > $1.size }
+        }.value
+    }
+
+    func setExcluded(_ ids: Set<String>, bytes: Int64, for categoryID: UUID) {
+        guard let i = categories.firstIndex(where: { $0.id == categoryID }) else { return }
+        categories[i].excludedItems = ids
+        categories[i].excludedBytes = bytes
+    }
+
+    /// Readable name: a backup's device name, or a DerivedData folder without
+    /// its "-<28 letter hash>" suffix.
+    private static nonisolated func displayName(of url: URL) -> String {
+        let info = url.appendingPathComponent("Info.plist")
+        if let dict = NSDictionary(contentsOf: info), let device = dict["Device Name"] as? String ?? dict["Display Name"] as? String {
+            let date = (dict["Last Backup Date"] as? Date).map { " · " + $0.formatted(date: .abbreviated, time: .omitted) } ?? ""
+            return device + date
+        }
+        let name = url.lastPathComponent
+        if let dash = name.lastIndex(of: "-"), name.distance(from: dash, to: name.endIndex) == 29,
+           name[name.index(after: dash)...].allSatisfy({ $0.isLowercase }) {
+            return String(name[..<dash])
+        }
+        return name
+    }
     var hasMissingPermissions: Bool = false
 
     func scanAll() async {
@@ -125,6 +181,8 @@ final class CleanupManager {
             categories[i].sizeBytes = result.0
             categories[i].fileCount = result.1
             categories[i].isAccessDenied = result.2
+            categories[i].excludedItems = []
+            categories[i].excludedBytes = 0
             if result.2 { foundMissing = true }
         }
         hasMissingPermissions = foundMissing
@@ -138,7 +196,7 @@ final class CleanupManager {
     /// Library/Caches umbrella swallowing the per-app cache categories) is not
     /// added twice — so the shown total matches what actually frees.
     static nonisolated func dedupedSize(_ cats: [CleanupCategory]) -> Int64 {
-        let resolved = cats.map { (cat: $0, paths: resolvedPaths(for: $0)) }
+        let resolved = cats.map { (cat: $0, paths: $0.resolvedPaths) }
         func nested(_ p: String, in q: String) -> Bool {
             p != q && p.hasPrefix(q.hasSuffix("/") ? q : q + "/")
         }
@@ -147,41 +205,65 @@ final class CleanupManager {
             let covered = !entry.paths.isEmpty && entry.paths.allSatisfy { p in
                 resolved.contains { $0.cat.id != entry.cat.id && $0.paths.contains { nested(p, in: $0) } }
             }
-            if !covered { total += entry.cat.sizeBytes }
+            if !covered { total += entry.cat.cleanableBytes }
         }
         return total
     }
 
-    private static nonisolated func resolvedPaths(for category: CleanupCategory) -> [String] {
-        let fm = FileManager.default
-        var result: [String] = []
-        for rawPath in category.paths {
-            let base = (rawPath as NSString).expandingTildeInPath
-            if let sub = category.subpath {
-                let children = (try? fm.contentsOfDirectory(atPath: base)) ?? []
-                for child in children {
-                    result.append(URL(fileURLWithPath: base).appendingPathComponent(child).appendingPathComponent(sub).path)
-                }
-            } else {
-                result.append(base)
+    /// Simulator runtimes superseded by a newer one on the same platform. Newest =
+    /// highest version, then release builds (24A434) over betas (24A5423a, trailing
+    /// letter), then highest build.
+    static nonisolated func supersededRuntimes() -> [(id: String, name: String, size: Int64)] {
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+        proc.arguments = ["simctl", "runtime", "list", "-j"]
+        let pipe = Pipe()
+        proc.standardOutput = pipe
+        proc.standardError = FileHandle.nullDevice
+        guard (try? proc.run()) != nil else { return [] }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        proc.waitUntilExit()
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: [String: Any]] else { return [] }
+
+        typealias Runtime = (id: String, platform: String, version: String, build: String, size: Int64, deletable: Bool)
+        let runtimes: [Runtime] = json.values.compactMap { r in
+            guard let id = r["identifier"] as? String, let platform = r["platformIdentifier"] as? String,
+                  let version = r["version"] as? String, let build = r["build"] as? String else { return nil }
+            return (id, platform, version, build, (r["sizeBytes"] as? NSNumber)?.int64Value ?? 0, r["deletable"] as? Bool ?? false)
+        }
+        func older(_ a: Runtime, _ b: Runtime) -> Bool {
+            let v = a.version.compare(b.version, options: .numeric)
+            if v != .orderedSame { return v == .orderedAscending }
+            let aRelease = a.build.last?.isNumber == true, bRelease = b.build.last?.isNumber == true
+            if aRelease != bRelease { return bRelease }
+            return a.build.compare(b.build, options: .numeric) == .orderedAscending
+        }
+        return Dictionary(grouping: runtimes, by: \.platform).values.flatMap { group in
+            let newest = group.max(by: older)?.id
+            return group.filter { $0.id != newest && $0.deletable }.map { r in
+                let os = ["iphonesimulator": "iOS", "watchsimulator": "watchOS", "appletvsimulator": "tvOS", "xrsimulator": "visionOS"]
+                let platform = os[r.platform.replacingOccurrences(of: "com.apple.platform.", with: "")] ?? r.platform
+                return (r.id, "\(platform) \(r.version) (\(r.build))", r.size)
             }
         }
-        return result
     }
 
     private static nonisolated func calculateSize(for category: CleanupCategory) -> (Int64, Int, Bool) {
         if category.name == "Trash" {
             return calculateTotalTrashSize()
         }
-        
+        if category.name == CleanupCategory.simulatorRuntimesName {
+            let old = supersededRuntimes()
+            return (old.reduce(0) { $0 + $1.size }, old.count, false)
+        }
+
         var total: Int64 = 0
         var count: Int = 0
         var denied = false
         let fm = FileManager.default
-        for path in resolvedPaths(for: category) {
+        for path in category.resolvedPaths {
             guard fm.fileExists(atPath: path) else { continue }
             
-            // Check if directory is readable
             if (try? fm.contentsOfDirectory(atPath: path)) == nil {
                 denied = true
                 continue
@@ -276,7 +358,6 @@ final class CleanupManager {
         for url in trashDirectories() {
             guard fm.fileExists(atPath: url.path) else { continue }
             
-            // Check readability
             if (try? fm.contentsOfDirectory(atPath: url.path)) == nil {
                 denied = true
             }
@@ -332,11 +413,13 @@ final class CleanupManager {
         return freed
     }
 
-    // nonisolated so the heavy file-deletion loop runs OFF the main thread —
+    // @concurrent so the heavy file-deletion loop runs OFF the main thread —
     // otherwise deleting a folder with tens of thousands of files (pub-cache,
-    // node_modules) freezes the UI until it finishes. The one main-thread bit,
-    // the password prompt, still hops back via MainActor.run inside runElevated.
-    private nonisolated static func performClean(category: CleanupCategory, deferElevated: Bool) async -> (freed: Int64, error: String?, elevated: ElevatedWork?) {
+    // node_modules) freezes the UI until it finishes. With Approachable
+    // Concurrency a plain nonisolated async func would run on the caller's
+    // actor, i.e. the main thread. The password prompt still hops back via
+    // MainActor.run inside runElevated.
+    @concurrent private nonisolated static func performClean(category: CleanupCategory, deferElevated: Bool) async -> (freed: Int64, error: String?, elevated: ElevatedWork?) {
         var freed: Int64 = 0
         var errors: [String] = []
         var elevated = ElevatedWork()
@@ -352,10 +435,24 @@ final class CleanupManager {
                 let items = (try? fm.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)) ?? []
                 for item in items where !removeUnlocking(item) { stuck += 1 }
             }
-            return (0, stuck == 0 ? nil : "\(stuck) item(s) still in use. Close the app that owns them and retry", nil)
+            return (0, stuck == 0 ? nil : "\(stuck) \(stuck == 1 ? "item is" : "items are") still in use. Close the app that owns them and clean again.", nil)
         }
 
-        // 1. Handle Shell Commands
+        if category.name == CleanupCategory.simulatorRuntimesName {
+            var failed = 0
+            for runtime in supersededRuntimes() where !category.excludedItems.contains(runtime.id) {
+                let proc = Process()
+                proc.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+                proc.arguments = ["simctl", "runtime", "delete", runtime.id]
+                proc.standardOutput = FileHandle.nullDevice
+                proc.standardError = FileHandle.nullDevice
+                guard (try? proc.run()) != nil else { failed += 1; continue }
+                proc.waitUntilExit()
+                if proc.terminationStatus != 0 { failed += 1 }
+            }
+            return (0, failed == 0 ? nil : "\(failed) runtime(s) not removed. Quit Xcode and Simulator, then retry", nil)
+        }
+
         if let cmd = category.shellCommand {
             // Under `with administrator privileges` the shell runs as root,
             // so `~` would expand to /var/root — expand it to the real home first.
@@ -367,11 +464,14 @@ final class CleanupManager {
                 let proc = Process()
                 proc.executableURL = URL(fileURLWithPath: "/bin/zsh")
                 proc.arguments = ["-c", expanded]
+                // GUI apps get a bare PATH; Homebrew tools (docker, gem) live outside it.
+                proc.environment = ProcessInfo.processInfo.environment.merging(
+                    ["PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"]) { $1 }
                 do {
                     try proc.run()
                     proc.waitUntilExit()
                     if proc.terminationStatus != 0 {
-                        errors.append("command exited with status \(proc.terminationStatus)")
+                        errors.append("The command failed (exit code \(proc.terminationStatus)). Run it in Terminal to see why.")
                     }
                 } catch {
                     errors.append(error.localizedDescription)
@@ -383,7 +483,7 @@ final class CleanupManager {
         // a time (keeping the folder apps expect to exist) so a single locked or
         // in-use file only blocks itself instead of forfeiting the whole category.
         var failed: [(url: URL, size: Int64)] = []
-        for path in resolvedPaths(for: category) {
+        for path in category.measureOnly ? [] : category.resolvedPaths where !category.excludedItems.contains(path) {
             let root = URL(fileURLWithPath: path)
             var isDir: ObjCBool = false
             guard fm.fileExists(atPath: path, isDirectory: &isDir) else { continue }
@@ -392,7 +492,7 @@ final class CleanupManager {
                 ? ((try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil, options: [])) ?? [])
                 : [root]
 
-            for target in targets {
+            for target in targets where !category.excludedItems.contains(target.path) {
                 let itemSize = size(of: target)
                 if removeUnlocking(target) {
                     freed += itemSize
@@ -422,7 +522,7 @@ final class CleanupManager {
             let result = await runElevated(elevated)
             freed += result.freed
             if result.cancelled {
-                errors.append("password prompt cancelled. Items needing admin access were skipped")
+                errors.append("you cancelled the password prompt. Items that need admin access were skipped. Clean again to retry.")
             } else if let err = result.error {
                 errors.append(err)
             }

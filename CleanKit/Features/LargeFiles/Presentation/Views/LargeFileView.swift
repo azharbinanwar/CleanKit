@@ -88,7 +88,7 @@ struct LargeFileView: View {
     }
     
     private var header: some View {
-        AppHeader(title: "Large Files", subtitle: "Find items taking up the most space") {
+        AppHeader(title: "Large File Finder", subtitle: "Find items taking up the most space") {
             HStack(spacing: 16) {
                 // 1. Quick Target Row
                 HStack(spacing: 8) {
@@ -149,7 +149,7 @@ struct LargeFileView: View {
         VStack(spacing: 20) {
             AppLoading(size: 32, strokeWidth: 2)
             VStack(spacing: 4) {
-                Text("Searching your Mac...")
+                Text("Searching your Mac…")
                     .font(.system(size: 15, weight: .bold))
                 Text("Filtering for files larger than \(Int(thresholdMB)) MB")
                     .font(.caption)
@@ -226,12 +226,12 @@ struct LargeFileView: View {
                         .font(.system(size: 13))
                         .foregroundColor(.secondary)
                     
-                    AppButton(title: "Delete Selected", style: .primary) {
+                    AppButton(title: "Move to Trash", style: .primary) {
                         confirmDeletion = true
                     }
                 }
             } else {
-                AppButton(title: "Select Files to Delete", style: .plain, isEnabled: false) { }
+                AppButton(title: "Select Files", style: .plain, isEnabled: false) { }
             }
         }
         .padding(.horizontal, 24)
@@ -241,7 +241,7 @@ struct LargeFileView: View {
     
     private var deletionConfirmDialog: some View {
         AppDialog(
-            title: "Delete Files",
+            title: "Move Files to Trash",
             subtitle: "These files will be moved to the Trash",
             onDismiss: { confirmDeletion = false }
         ) {
@@ -262,16 +262,16 @@ struct LargeFileView: View {
             }
         } actions: {
             VStack(alignment: .leading, spacing: 2) {
-                Text("TO BE REMOVED").font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)
+                Text("TOTAL SIZE").font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)
                 Text(totalSelectedSize.formattedSize).font(.system(size: 20, weight: .bold))
             }
             Spacer()
             AppButton(title: "Cancel", style: .glass) { confirmDeletion = false }
-            AppButton(title: "Delete Now", style: .primary) {
+            AppButton(title: "Move to Trash", style: .primary) {
                 let targets = selectedFiles
                 let sizeToReport = totalSelectedSize
                 Task {
-                    await scanner.delete(targets)
+                    await scanner.moveToTrash(targets)
                     lastDeletedSize = sizeToReport
                     confirmDeletion = false
                     withAnimation { screen = .result }
@@ -282,10 +282,10 @@ struct LargeFileView: View {
     
     private var resultView: some View {
         AppResultView(
-            title: "Files Removed",
-            subtitle: "Your selected large files have been processed.",
+            title: "Files Moved to Trash",
+            subtitle: "Empty the Trash to free the space.",
             stats: [
-                (label: "Cleaned", value: lastDeletedSize.formattedSize, icon: "doc.badge.checkmark")
+                (label: "Moved to Trash", value: lastDeletedSize.formattedSize, icon: "doc.badge.checkmark")
             ]
         ) {
             AppButton(title: "Done", style: .primary) {

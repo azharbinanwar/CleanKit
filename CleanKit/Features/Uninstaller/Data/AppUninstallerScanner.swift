@@ -101,7 +101,7 @@ final class AppUninstallerScanner {
 
     func uninstall(appID: UUID, leftoverIDs: Set<UUID>) async -> UninstallResult {
         guard let app = apps.first(where: { $0.id == appID }) else {
-            return UninstallResult(removed: false, freed: 0, cancelled: false, message: "App not found")
+            return UninstallResult(removed: false, freed: 0, cancelled: false, message: "CleanKit couldn't find this app. Scan again.")
         }
         let appURL = app.appURL
         let appSize = app.sizeBytes
@@ -141,7 +141,7 @@ final class AppUninstallerScanner {
             var message: String? = nil
             if !removed {
                 message = cancelled
-                    ? "Password cancelled. \(app.name) was not removed."
+                    ? "You cancelled the password prompt, so \(app.name) wasn't removed."
                     : "\(app.name) is protected by macOS and couldn't be removed."
             }
             return UninstallResult(removed: removed, freed: freed, cancelled: cancelled, message: message)
@@ -210,20 +210,27 @@ final class AppUninstallerScanner {
         var items: [LeftoverItem] = []
         var seen = Set<String>()
 
-        let candidates: [(String, String)] = [
+        // Names come from the app's own Info.plist. An empty one, "..", or one
+        // with a "/" would turn "~/Library/Caches/<id>" into a whole Library
+        // folder (or ~/Library itself), so such values are never used in a path.
+        func isSafePathComponent(_ s: String) -> Bool { !s.isEmpty && s != "." && s != ".." && !s.contains("/") }
+        let byName: [(String, String)] = isSafePathComponent(name) ? [
             ("~/Library/Application Support/\(name)", "App Support"),
+            ("~/Library/Logs/\(name)", "Logs"),
+        ] : []
+        let byID: [(String, String)] = isSafePathComponent(bundleID) ? [
             ("~/Library/Application Support/\(bundleID)", "App Support"),
             ("~/Library/Preferences/\(bundleID).plist", "Preferences"),
             ("~/Library/Caches/\(bundleID)", "Caches"),
-            ("~/Library/Logs/\(name)", "Logs"),
             ("~/Library/Containers/\(bundleID)", "Containers"),
             ("~/Library/Saved Application State/\(bundleID).savedState", "Saved State"),
             ("~/Library/WebKit/\(bundleID)", "WebKit"),
             ("~/Library/HTTPStorages/\(bundleID)", "HTTP Storage"),
-        ]
+        ] : []
+        let candidates = byName + byID
 
         for (path, label) in candidates {
-            let expanded = path.replacingOccurrences(of: "~", with: home)
+            let expanded = (path as NSString).expandingTildeInPath
             guard !seen.contains(expanded), fm.fileExists(atPath: expanded) else { continue }
             seen.insert(expanded)
             let url = URL(fileURLWithPath: expanded)
@@ -232,8 +239,9 @@ final class AppUninstallerScanner {
         }
 
         let groupDir = URL(fileURLWithPath: "\(home)/Library/Group Containers")
-        if !bundleID.isEmpty, let entries = try? fm.contentsOfDirectory(at: groupDir, includingPropertiesForKeys: nil) {
-            for entry in entries where entry.lastPathComponent.contains(bundleID) {
+        // Group containers are named "<TEAMID>.<bundle id>" or "group.<bundle id>".
+        if isSafePathComponent(bundleID), let entries = try? fm.contentsOfDirectory(at: groupDir, includingPropertiesForKeys: nil) {
+            for entry in entries where entry.lastPathComponent == bundleID || entry.lastPathComponent.hasSuffix("." + bundleID) {
                 items.append(LeftoverItem(url: entry, label: "Group Containers", sizeBytes: directorySize(entry)))
             }
         }
