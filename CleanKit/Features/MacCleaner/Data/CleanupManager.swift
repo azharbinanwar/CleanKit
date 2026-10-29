@@ -248,6 +248,75 @@ final class CleanupManager {
         }
     }
 
+    /// GUI apps get a bare PATH; Homebrew tools (docker, gem) live outside it.
+    private static nonisolated var toolEnvironment: [String: String] {
+        ProcessInfo.processInfo.environment.merging(
+            ["PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"]) { $1 }
+    }
+
+    /// Runs a shell command and returns its output, or nil if it couldn't run
+    /// or exited with an error.
+    private static nonisolated func runCapture(_ command: String) -> String? {
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        proc.arguments = ["-c", command]
+        proc.environment = toolEnvironment
+        let pipe = Pipe()
+        proc.standardOutput = pipe
+        proc.standardError = FileHandle.nullDevice
+        guard (try? proc.run()) != nil else { return nil }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        proc.waitUntilExit()
+        return proc.terminationStatus == 0 ? String(decoding: data, as: UTF8.self) : nil
+    }
+
+    /// Asks a command-only category's tool what it would clean, as
+    /// (bytes, count, denied). Tools that can't report a size give a count;
+    /// a count of -1 means the tool isn't usable right now (Docker not running).
+    private static nonisolated func measureCommand(_ category: CleanupCategory) -> (Int64, Int, Bool) {
+        let command = category.shellCommand ?? ""
+        if command.hasPrefix("docker") {
+            guard let out = runCapture("docker system df --format '{{.Type}}\t{{.Reclaimable}}'") else { return (0, -1, false) }
+            // Volumes are reported too, but the prune keeps them.
+            let bytes = out.split(separator: "\n").reduce(Int64(0)) { total, line in
+                let columns = line.split(separator: "\t")
+                guard columns.count == 2, columns[0] != "Local Volumes" else { return total }
+                return total + dockerBytes(String(columns[1]))
+            }
+            return (bytes, 0, false)
+        }
+        if command.hasPrefix("tmutil") {
+            let out = runCapture("tmutil listlocalsnapshots /") ?? ""
+            return (0, out.components(separatedBy: "com.apple.TimeMachine").count - 1, false)
+        }
+        if command.hasPrefix("gem") {
+            let out = runCapture("gem cleanup -d") ?? ""
+            return (0, out.components(separatedBy: "Attempting to uninstall").count - 1, false)
+        }
+        if command.hasPrefix("xcrun simctl delete unavailable") {
+            guard let out = runCapture("xcrun simctl list devices unavailable -j"),
+                  let json = try? JSONSerialization.jsonObject(with: Data(out.utf8)) as? [String: Any],
+                  let runtimes = json["devices"] as? [String: [[String: Any]]] else { return (0, 0, false) }
+            let devices = runtimes.values.flatMap { $0 }
+            // dataPath is <device folder>/data; the whole device folder goes.
+            let bytes = devices.compactMap { $0["dataPath"] as? String }.reduce(Int64(0)) {
+                $0 + size(of: URL(fileURLWithPath: $1).deletingLastPathComponent())
+            }
+            return (bytes, devices.count, false)
+        }
+        return (0, 0, false)
+    }
+
+    /// Parses Docker's decimal sizes: "1.23GB (45%)", "512kB", "0B".
+    private static nonisolated func dockerBytes(_ text: String) -> Int64 {
+        let token = text.split(separator: " ").first.map(String.init) ?? ""
+        let units: [(String, Double)] = [("TB", 1e12), ("GB", 1e9), ("MB", 1e6), ("kB", 1e3), ("B", 1)]
+        for (unit, scale) in units where token.hasSuffix(unit) {
+            return Int64((Double(token.dropLast(unit.count)) ?? 0) * scale)
+        }
+        return 0
+    }
+
     private static nonisolated func calculateSize(for category: CleanupCategory) -> (Int64, Int, Bool) {
         if category.name == "Trash" {
             return calculateTotalTrashSize()
@@ -255,6 +324,9 @@ final class CleanupManager {
         if category.name == CleanupCategory.simulatorRuntimesName {
             let old = supersededRuntimes()
             return (old.reduce(0) { $0 + $1.size }, old.count, false)
+        }
+        if category.isCommandOnly {
+            return measureCommand(category)
         }
 
         var total: Int64 = 0
@@ -464,9 +536,7 @@ final class CleanupManager {
                 let proc = Process()
                 proc.executableURL = URL(fileURLWithPath: "/bin/zsh")
                 proc.arguments = ["-c", expanded]
-                // GUI apps get a bare PATH; Homebrew tools (docker, gem) live outside it.
-                proc.environment = ProcessInfo.processInfo.environment.merging(
-                    ["PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"]) { $1 }
+                proc.environment = toolEnvironment
                 do {
                     try proc.run()
                     proc.waitUntilExit()

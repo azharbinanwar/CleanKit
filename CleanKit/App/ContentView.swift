@@ -79,14 +79,17 @@ struct ContentView: View {
         .focusEffectDisabled() // no odd default focus ring on launch
     }
 
+    /// Height of the title-bar band, divider included. Content starts 16 below
+    /// it, matching the 16 used on the other edges.
+    private let appBarHeight: CGFloat = 38
+
     // Plain centered app name in the title-bar band, with a divider under it.
     private var appBar: some View {
         VStack(spacing: 0) {
             Text("CleanKit")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.secondary)
-                .padding(.top, 12)
-                .padding(.bottom, 9)
+                .frame(height: appBarHeight - 1)
             Divider().opacity(0.5)
         }
         .frame(maxWidth: .infinity)
@@ -99,7 +102,7 @@ struct ContentView: View {
             SidebarView(selectedTool: $selectedTool, isCompact: $sidebarCompact, showSettings: $showSettings)
                 .padding(.leading, 16)
                 .padding(.bottom, 16)
-                .padding(.top, 48) // Below the traffic lights + appbar (original position)
+                .padding(.top, appBarHeight + 16)
 
             Group {
                 if showSettings {
@@ -111,7 +114,7 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.trailing, 16)
             .padding(.bottom, 16)
-            .padding(.top, 48) // Align with sidebar
+            .padding(.top, appBarHeight + 16)
             
             PermissionsPanel(isShowing: $showPermissions, permissions: requiredPermissions)
         }

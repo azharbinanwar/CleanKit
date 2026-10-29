@@ -199,7 +199,7 @@ struct MacCleanerView: View {
     /// "Your data" and large-download items are never pre-selected; the user must opt in.
     private func autoSelectableIDs() -> [UUID] {
         manager.categories
-            .filter { $0.safety != .data && !$0.isLargeDownload && ($0.sizeBytes > 0 || $0.shellCommand != nil) }
+            .filter { $0.safety != .data && !$0.isLargeDownload && $0.hasWork }
             .map { $0.id }
     }
 
@@ -246,7 +246,7 @@ struct MacCleanerView: View {
                 // 2. Actions (Right)
                 if selectedIDs.isEmpty {
                     AppButton(title: "Clean All", style: .primary, isEnabled: allGroupsTotal > 0 && !manager.isScanning) {
-                        let items = manager.categories.filter { $0.sizeBytes > 0 || $0.shellCommand != nil }
+                        let items = manager.categories.filter { $0.hasWork }
                         confirmPayload = ConfirmPayload(items: items)
                     }
                 } else {
@@ -332,11 +332,11 @@ struct CategoryPanel: View {
     }
 
     var foundCategories: [CleanupCategory] {
-        groupCategories.filter { $0.sizeBytes > 0 || $0.shellCommand != nil }
+        groupCategories.filter { $0.hasWork }
     }
 
     var emptyCategories: [CleanupCategory] {
-        groupCategories.filter { $0.sizeBytes == 0 && $0.shellCommand == nil }
+        groupCategories.filter { !$0.hasWork }
     }
 
     var maxGroupSize: Int64 {
@@ -495,7 +495,7 @@ struct CategoryRow: View {
     var onShowItems: (() -> Void)? = nil
 
     var isSelectable: Bool {
-        !isScanning && !cat.isAccessDenied && (cat.sizeBytes > 0 || cat.shellCommand != nil)
+        !isScanning && !cat.isAccessDenied && cat.hasWork
     }
 
     var body: some View {
@@ -585,7 +585,11 @@ struct CategoryRow: View {
                     HStack(spacing: 12) {
                         if !isScanning && !cat.isAccessDenied {
                             // Some sub-items kept: "to clean / total". All or none kept: the total.
-                            if !cat.excludedItems.isEmpty && cat.cleanableBytes > 0 {
+                            if let summary = cat.commandSummary {
+                                Text(summary)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(cat.hasWork ? .primary : .secondary)
+                            } else if !cat.excludedItems.isEmpty && cat.cleanableBytes > 0 {
                                 HStack(spacing: 3) {
                                     Text(cat.cleanableBytes.formattedSize)
                                         .font(.system(size: 11, weight: .semibold).monospacedDigit())
@@ -681,7 +685,7 @@ struct ConfirmSheet: View {
                                 .truncationMode(.tail)
                         }
                         Spacer()
-                        Text(cat.cleanableBytes.formattedSize)
+                        Text(cat.commandSummary ?? cat.cleanableBytes.formattedSize)
                             .font(.system(size: 12).monospacedDigit())
                             .foregroundColor(.secondary)
                     }

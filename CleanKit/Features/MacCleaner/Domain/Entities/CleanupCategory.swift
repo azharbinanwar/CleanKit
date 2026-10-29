@@ -47,6 +47,28 @@ struct CleanupCategory: Identifiable {
     var keepNewestPrefix: String? = nil
     /// Its sub-items (projects, runtimes, backups…) can be picked one by one.
     var expandable: Bool = false
+    /// Repairs a glitch rather than freeing space (flush DNS, reset fonts):
+    /// there is nothing to measure, so it is always offered.
+    var isFix: Bool = false
+    /// What `fileCount` counts for a command that reports no size ("snapshot").
+    var countUnit: String = "item"
+
+    /// Cleans by running a command, with no folders of its own to measure.
+    nonisolated var isCommandOnly: Bool { paths.isEmpty && shellCommand != nil && name != "Trash" }
+
+    /// Something to clean was found (or it's a fix, which is always available).
+    /// A command-only category reports a count when the tool can't give a size;
+    /// a negative count means the tool isn't available right now.
+    var hasWork: Bool { isFix || sizeBytes > 0 || (isCommandOnly && fileCount > 0) }
+
+    /// Shown instead of a size for command-only categories without one.
+    var commandSummary: String? {
+        guard isCommandOnly, sizeBytes == 0 else { return nil }
+        if isFix { return "Fix" }
+        if fileCount < 0 { return "Not running" }
+        guard fileCount > 0 else { return nil }
+        return "\(fileCount) \(countUnit)\(fileCount == 1 ? "" : "s")"
+    }
 
     /// Settings folder names (`dataDirectoryName`) of installed JetBrains-based
     /// IDEs such as Android Studio: the folders they are using right now.
@@ -130,7 +152,7 @@ struct CleanupCategory: Identifiable {
 
     static let all: [CleanupCategory] = [
         // MARK: Developer - Xcode
-        CleanupCategory(name: "iOS Simulator (Unavailable)", icon: "iphone.slash", paths: [], subpath: nil, shellCommand: "xcrun simctl delete unavailable", info: "Deletes simulators macOS marked unavailable.", safety: .safe, requiresElevation: false),
+        CleanupCategory(name: "iOS Simulator (Unavailable)", icon: "iphone.slash", paths: [], subpath: nil, shellCommand: "xcrun simctl delete unavailable", info: "Deletes simulators macOS marked unavailable.", safety: .safe, requiresElevation: false, countUnit: "simulator"),
         CleanupCategory(name: simulatorRuntimesName, icon: "square.stack.3d.down.right", paths: [], subpath: nil, shellCommand: nil, info: "iOS/watchOS/tvOS runtimes replaced by a newer one. Newest release kept. Re-download older ones in Xcode if you test on them.", safety: .caution, expandable: true),
         CleanupCategory(name: "Simulator Device Data", icon: "iphone.gen2", paths: ["~/Library/Developer/CoreSimulator/Devices"], subpath: nil, shellCommand: "xcrun simctl shutdown all; xcrun simctl erase all", info: "Apps, logins and test data inside every simulator. Devices stay but come back empty.", safety: .data, measureOnly: true),
         CleanupCategory(name: "Xcode DerivedData", icon: "hammer", paths: ["~/Library/Developer/Xcode/DerivedData"], subpath: nil, shellCommand: nil, info: "Build cache. Xcode rebuilds it on the next build.", safety: .safe, expandable: true),
@@ -244,10 +266,10 @@ struct CleanupCategory: Identifiable {
         CleanupCategory(name: "Trash", icon: "trash", paths: [], subpath: nil, shellCommand: "empty-trash", info: "Permanently empties your Bin. Cannot be undone.", safety: .data, requiresElevation: false),
 
         // MARK: Commands
-        CleanupCategory(name: "Docker System Prune", icon: "shippingbox.and.arrow.backward", paths: [], subpath: nil, shellCommand: "docker system prune -f", info: "Removes unused Docker images and stopped containers.", safety: .caution),
-        CleanupCategory(name: "Ruby Gem Cleanup", icon: "diamond", paths: [], subpath: nil, shellCommand: "gem cleanup", info: "Removes old versions of installed gems.", safety: .safe),
-        CleanupCategory(name: "Font Cache Reset", icon: "textformat", paths: [], subpath: nil, shellCommand: "atsutil databases -removeUser", info: "Rebuilds font caches. Fixes font display glitches.", safety: .safe),
-        CleanupCategory(name: "Flush DNS Cache", icon: "network", paths: [], subpath: nil, shellCommand: "dscacheutil -flushcache; killall -HUP mDNSResponder", info: "Clears DNS lookups. Fixes stale site errors (needs admin).", safety: .safe, requiresElevation: true),
-        CleanupCategory(name: "Time Machine Snapshots", icon: "clock.arrow.circlepath", paths: [], subpath: nil, shellCommand: "tmutil thinlocalsnapshots / 999999999999 4", info: "Thins local Time Machine snapshots. Frees hidden space (admin).", safety: .safe, requiresElevation: true),
+        CleanupCategory(name: "Docker System Prune", icon: "shippingbox.and.arrow.backward", paths: [], subpath: nil, shellCommand: "docker system prune -af", info: "Removes stopped containers, unused images and build cache. Volumes are kept. Images re-download when needed.", safety: .caution),
+        CleanupCategory(name: "Ruby Gem Cleanup", icon: "diamond", paths: [], subpath: nil, shellCommand: "gem cleanup", info: "Removes old versions of installed gems.", safety: .safe, countUnit: "old gem"),
+        CleanupCategory(name: "Font Cache Reset", icon: "textformat", paths: [], subpath: nil, shellCommand: "atsutil databases -removeUser", info: "Rebuilds font caches. Fixes font display glitches.", safety: .safe, isFix: true),
+        CleanupCategory(name: "Flush DNS Cache", icon: "network", paths: [], subpath: nil, shellCommand: "dscacheutil -flushcache; killall -HUP mDNSResponder", info: "Clears DNS lookups. Fixes stale site errors (needs admin).", safety: .safe, requiresElevation: true, isFix: true),
+        CleanupCategory(name: "Time Machine Snapshots", icon: "clock.arrow.circlepath", paths: [], subpath: nil, shellCommand: "tmutil thinlocalsnapshots / 999999999999 4", info: "Thins local Time Machine snapshots. Frees hidden space (admin).", safety: .safe, requiresElevation: true, countUnit: "snapshot"),
     ]
 }
