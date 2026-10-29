@@ -52,6 +52,7 @@ struct LargeFileView: View {
                 AppBanner(
                     icon: "lock.shield.fill",
                     message: "Full Disk Access is required to find all large files on your Mac.",
+                    detail: AppPermission.staleGrantHint,
                     actionTitle: "Open Settings"
                 ) {
                     NSWorkspace.shared.open(AppPermission.fullDiskAccess.settingsURL)

@@ -109,6 +109,7 @@ struct MacCleanerView: View {
                     AppBanner(
                         icon: "lock.shield.fill",
                         message: "Cleaning may be incomplete. Full Disk Access is required for system cleanup.",
+                        detail: AppPermission.staleGrantHint,
                         actionTitle: "Open Settings"
                     ) {
                         NSWorkspace.shared.open(AppPermission.fullDiskAccess.settingsURL)

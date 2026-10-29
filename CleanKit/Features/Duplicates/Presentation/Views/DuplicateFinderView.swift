@@ -103,6 +103,7 @@ struct DuplicateFinderView: View {
                 AppBanner(
                     icon: "lock.shield",
                     message: "Full Disk Access is required to find duplicates in all system folders.",
+                    detail: AppPermission.staleGrantHint,
                     actionTitle: "Open Settings"
                 ) {
                     NSWorkspace.shared.open(AppPermission.fullDiskAccess.settingsURL)

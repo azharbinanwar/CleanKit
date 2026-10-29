@@ -5,6 +5,10 @@ enum AppPermission: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// macOS keeps a grant tied to the app's old signature after an update that
+    /// re-signed it, so the switch looks on but doesn't apply to this version.
+    static let staleGrantHint = "Already on? Remove CleanKit from the list with \u{2212}, add it again with +, then reopen CleanKit."
+
     var name: String {
         switch self {
         case .fullDiskAccess: return "Full Disk Access"

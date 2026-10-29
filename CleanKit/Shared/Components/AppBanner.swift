@@ -3,6 +3,7 @@ import SwiftUI
 struct AppBanner: View {
     let icon: String
     let message: String
+    var detail: String? = nil
     var actionTitle: String? = nil
     var action: (() -> Void)? = nil
 
@@ -13,9 +14,16 @@ struct AppBanner: View {
                 .foregroundColor(.orange)
                 .frame(width: 24)
 
-            Text(message)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(message)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.secondary)
+                if let detail {
+                    Text(detail)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary.opacity(0.8))
+                }
+            }
 
             Spacer()
 

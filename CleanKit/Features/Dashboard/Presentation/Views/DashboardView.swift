@@ -24,6 +24,7 @@ struct DashboardView: View {
                     AppBanner(
                         icon: "lock.shield.fill",
                         message: "Some system folders are protected. Grant Full Disk Access to clean everything.",
+                        detail: AppPermission.staleGrantHint,
                         actionTitle: "Open Settings"
                     ) {
                         NSWorkspace.shared.open(AppPermission.fullDiskAccess.settingsURL)
