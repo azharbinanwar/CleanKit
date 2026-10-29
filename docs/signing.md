@@ -102,9 +102,16 @@ Load the certificate into a temporary keychain before building
     security import "$RUNNER_TEMP/signing.p12" -k "$kc" -P "$P12_PASSWORD" -T /usr/bin/codesign
     security set-key-partition-list -S apple-tool:,apple: -s -k ci "$kc"
     rm "$RUNNER_TEMP/signing.p12"
+    security list-keychains -d user -s "$kc" $(security list-keychains -d user | tr -d '"')
+    id=$(security find-identity -p codesigning "$kc" | awk '/"KodeElite Self-Signed"/ {print $2; exit}')
+    [ -n "$id" ] || { echo "::error::Signing certificate not found"; exit 1; }
     echo "SIGN_KEYCHAIN=$kc" >> "$GITHUB_ENV"
-    echo "SIGN_IDENTITY=KodeElite Self-Signed" >> "$GITHUB_ENV"
+    echo "SIGN_IDENTITY=$id" >> "$GITHUB_ENV"
 ```
+
+A self-signed certificate is never "trusted" by macOS (`security find-identity`
+shows "0 valid identities"), so `codesign --sign "<name>"` fails with
+"no identity found". Sign with its SHA-1 fingerprint, as above.
 
 Then sign the built app before packaging it (see `scripts/build-dmg.sh`):
 
@@ -113,7 +120,7 @@ codesign --force --sign "$SIGN_IDENTITY" ${SIGN_KEYCHAIN:+--keychain "$SIGN_KEYC
 codesign --verify --strict "$APP"
 ```
 
-`SIGN_IDENTITY` must match the certificate's name (`/CN=` in step 1).
+The name in the `awk` pattern must match the certificate's name (`/CN=` in step 1).
 
 ## 5. Check a signed app
 

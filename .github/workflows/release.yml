@@ -53,8 +53,13 @@ jobs:
           security import "$RUNNER_TEMP/signing.p12" -k "$kc" -P "$P12_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k ci "$kc"
           rm "$RUNNER_TEMP/signing.p12"
+          security list-keychains -d user -s "$kc" $(security list-keychains -d user | tr -d '"')
+          # A self-signed certificate is never "trusted", so codesign can't find it
+          # by name; sign with its SHA-1 fingerprint instead.
+          id=$(security find-identity -p codesigning "$kc" | awk '/"CleanKit Self-Signed"/ {print $2; exit}')
+          [ -n "$id" ] || { security find-identity -p codesigning "$kc"; echo "::error::Signing certificate not found in the keychain"; exit 1; }
           echo "SIGN_KEYCHAIN=$kc" >> "$GITHUB_ENV"
-          echo "SIGN_IDENTITY=CleanKit Self-Signed" >> "$GITHUB_ENV"
+          echo "SIGN_IDENTITY=$id" >> "$GITHUB_ENV"
 
       - name: Build and package
         run: scripts/build-dmg.sh
