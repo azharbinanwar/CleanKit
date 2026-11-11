@@ -103,5 +103,6 @@ don't open a public issue. See [SECURITY.md](SECURITY.md).
 2. `git tag v1.0.5 && git push origin v1.0.5`
 
 The release workflow builds and signs the app, makes `CleanKit.dmg` and its
-checksum, and publishes the GitHub release. The tag must match the app version.
+checksum, and publishes the GitHub release. The tag must be on `main` and match
+the app version.
 See [docs/signing.md](docs/signing.md) for the signing setup.
