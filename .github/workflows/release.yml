@@ -3,8 +3,8 @@
 #   1. bump MARKETING_VERSION in Xcode (e.g. 1.0.5) and merge it to main
 #   2. git tag v1.0.5 && git push origin v1.0.5
 #
-# The tag must match the app's version, so v1.0.5 can never ship an app that
-# reports 1.0.4.
+# The tag must be on main and match the app's version, so v1.0.5 can never ship
+# unmerged code or an app that reports 1.0.4.
 name: Release
 
 on:
@@ -24,6 +24,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Tag is on main
+        run: |
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
+            echo "::error::$GITHUB_REF_NAME points at a commit that isn't on main. Merge it to main first, then tag main."
+            exit 1
+          }
 
       - name: Tag matches app version
         id: version
